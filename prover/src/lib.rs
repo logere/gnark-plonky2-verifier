@@ -111,7 +111,7 @@ mod tests {
         let data = builder.build::<C>();
         let mut pw = PartialWitness::<F>::new();
         tracing::info!("setting witness...");
-        pw.set_target(x_t, GoldilocksField(1)); // set x = 1
+        pw.set_target(x_t, GoldilocksField(1))?; // set x = 1
 
         tracing::info!("proving...");
         let proof = data.prove(pw)?;

@@ -14,13 +14,13 @@ lazy_static = "1.4.0"
 num = { version = "0.4", features = ["rand"] }
 num-derive = "0.3.3"
 num-traits = "0.2.15"
-plonky2 = { git = "https://github.com/QEDProtocol/plonky2-hwa", rev = "6a8ca008da97890b67a84f64784cfbc488b5238d" }
-plonky2x = { git = "https://github.com/GopherJ/succinctx", rev = "502ae514676347c6ae7757dc23866558cb25dbf1" }
+plonky2 = { git = "https://github.com/PsyProtocol/plonky2-hwa", rev = "1dfe6112c3eca3668c15820755371a8a3e75f934", features = ["ts-rs"]}
+plonky2x = { git = "https://github.com/logere/succinctx", rev = "eec027a324be98827b4b91b4054f4cac7044ced4" }
 rand = "0.8"
 serde = { version = "1.0.145", features = ["derive"] }
 serde_json = "1.0.86"
 serde_with = { version = "2.2.0", features = ["hex"] }
-starkyx = { git = "https://github.com/QEDProtocol/starkyx", rev = "a53ea1060c6256a8a26820e43fbe8d75233e8b29" }
+starkyx = { git = "https://github.com/logere/starkyx", rev = "a99c9b1c52464c991107a911b1e89da1d11491f3" }
 tracing = "0.1.40"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.17", features = ["std", "env-filter"] }
@@ -45,7 +45,7 @@ opt-level = 3
 opt-level = 3
 
 [patch.'https://github.com/0xPolygonZero/plonky2.git']
-plonky2 = { git = "https://github.com/QEDProtocol/plonky2-hwa", rev = "6a8ca008da97890b67a84f64784cfbc488b5238d" }
+plonky2 = { git = "https://github.com/PsyProtocol/plonky2-hwa", rev = "1dfe6112c3eca3668c15820755371a8a3e75f934", features = ["ts-rs"]}
 
 [patch.'https://github.com/succinctlabs/starkyx.git']
-starkyx = { git = "https://github.com/QEDProtocol/starkyx", rev = "a53ea1060c6256a8a26820e43fbe8d75233e8b29" }
+starkyx = { git = "https://github.com/logere/starkyx", rev = "a99c9b1c52464c991107a911b1e89da1d11491f3" }
