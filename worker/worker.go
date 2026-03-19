@@ -19,8 +19,12 @@ import (
 	groth16_bls12381 "github.com/zilong-dai/gnark/backend/groth16/bls12-381"
 	"github.com/zilong-dai/gnark/backend/witness"
 	"github.com/zilong-dai/gnark/constraint"
+	csbls12381 "github.com/zilong-dai/gnark/constraint/bls12-381"
+	csbn254 "github.com/zilong-dai/gnark/constraint/bn254"
+	csolver "github.com/zilong-dai/gnark/constraint/solver"
 	"github.com/zilong-dai/gnark/frontend"
 	"github.com/zilong-dai/gnark/frontend/cs/r1cs"
+	"github.com/rs/zerolog"
 )
 
 type PreparedCircuit struct {
@@ -45,15 +49,15 @@ func Initialize(keystore_path string) {
 		panic("Initializing Keys not exist")
 	}
 
-	ccs, err = ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path,CIRCUIT_PATH))
+	ccs, err = ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path, CIRCUIT_PATH))
 	if err != nil {
 		panic(err)
 	}
-	vk, err = ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path,VK_PATH))
+	vk, err = ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path, VK_PATH))
 	if err != nil {
 		panic(err)
 	}
-	pk, err = ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path,PK_PATH))
+	pk, err = ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path, PK_PATH))
 	if err != nil {
 		panic(err)
 	}
@@ -137,7 +141,9 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 		sighashAcc = new(big.Int).Add(sighashAcc, new(big.Int).SetUint64(rawProofWithPis.PublicInputs[i]))
 	}
 	blockStateHash := frontend.Variable(blockStateHashAcc)
+	fmt.Println("blockStateHash", blockStateHash)
 	sighash := frontend.Variable(sighashAcc)
+	fmt.Println("sighash", sighash)
 
 	circuit := CRVerifierCircuit{
 		PublicInputs:            make([]frontend.Variable, 2),
@@ -167,31 +173,35 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 		panic(err)
 	}
 
-  var proof groth16.Proof
-  var publicWitness  witness.Witness
-  var retries = 0
+	if err := debugUnsatisfiedConstraint(*cs, wit); err != nil {
+		panic(err)
+	}
 
-  for {
-    proof, err = groth16.Prove(*cs, pk, wit)
-    if err != nil {
-      panic(err)
-    }
+	var proof groth16.Proof
+	var publicWitness witness.Witness
+	var retries = 0
 
-    publicWitness, err = wit.Public()
-    if err != nil {
-      panic(err)
-    }
+	for {
+		proof, err = groth16.Prove(*cs, pk, wit)
+		if err != nil {
+			panic(err)
+		}
 
-    err = groth16.Verify(proof, vk, publicWitness)
-    if err == nil {
-      break
-    }
-    if retries > 5 {
-      panic(err)
-    }
-    fmt.Println("generated bad proof, retrying...")
-    retries += 1
-  }
+		publicWitness, err = wit.Public()
+		if err != nil {
+			panic(err)
+		}
+
+		err = groth16.Verify(proof, vk, publicWitness)
+		if err == nil {
+			break
+		}
+		if retries > 5 {
+			panic(err)
+		}
+		fmt.Println("generated bad proof, retrying...")
+		retries += 1
+	}
 
 	blsProof := proof.(*groth16_bls12381.Proof)
 	blsVk := vk
@@ -235,33 +245,66 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 
 }
 
+func debugUnsatisfiedConstraint(ccs constraint.ConstraintSystem, wit witness.Witness) error {
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger().Level(zerolog.DebugLevel)
+	if err := ccs.IsSolved(wit, csolver.WithLogger(logger)); err != nil {
+		fmt.Printf("IsSolved failed: %v\n", err)
+		cid := -1
+		switch e := err.(type) {
+		case *csbn254.UnsatisfiedConstraintError:
+			cid = e.CID
+		case *csbls12381.UnsatisfiedConstraintError:
+			cid = e.CID
+		}
+		if cid >= 0 {
+			if r1cs, ok := ccs.(constraint.R1CS); ok {
+				it := r1cs.GetR1CIterator()
+				idx := 0
+				for {
+					r1c := it.Next()
+					if r1c == nil {
+						break
+					}
+					if idx == cid {
+						fmt.Printf("Unsatisfied constraint #%d: %s\n", cid, r1c.String(r1cs))
+						break
+					}
+					idx++
+				}
+			}
+		}
+		return err
+	}
+	return nil
+}
+
 func VerifyProof(proofString string, vkString string) string {
 	var cityProof serialize.CityGroth16ProofData
 	var cityVk serialize.CityGroth16VerifierData
 
 	if err := json.Unmarshal([]byte(proofString), &cityProof); err != nil {
-    fmt.Println(err)
+		fmt.Println(err)
 		return "false"
 	}
 
 	g16ProofWithPublicInputs, err := FromCityProof(cityProof)
 	if err != nil {
-    fmt.Println(err)
+		fmt.Println(err)
 		return "false"
 	}
 
 	if err := json.Unmarshal([]byte(vkString), &cityVk); err != nil {
-    fmt.Println(err)
+		fmt.Println(err)
 		return "false"
 	}
 	g16VerifyingKey, err := FromCityVk(cityVk)
 	if err != nil {
-    fmt.Println(err)
+		fmt.Println(err)
 		return "false"
 	}
 
 	if err := groth16.Verify(g16ProofWithPublicInputs.Proof, g16VerifyingKey.VK, g16ProofWithPublicInputs.PublicInputs); err != nil {
-    fmt.Println(err)
+		fmt.Println(err)
 		return "false"
 	}
 	return "true"
@@ -273,15 +316,15 @@ func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.Constr
 	}
 	fmt.Println("you have to initialize all the keys first")
 	if CheckKeysExist(keystore_path) {
-		ccs, err := ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path,CIRCUIT_PATH))
+		ccs, err := ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path, CIRCUIT_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		vk, err := ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path,VK_PATH))
+		vk, err := ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path, VK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		pk, err := ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path,PK_PATH))
+		pk, err := ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path, PK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}

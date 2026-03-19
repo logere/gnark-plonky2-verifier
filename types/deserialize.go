@@ -6,6 +6,23 @@ import (
 	"os"
 )
 
+type OpeningProof struct {
+	CommitPhaseMerkleCaps [][]string `json:"commit_phase_merkle_caps"`
+	QueryRoundProofs      []struct {
+		InitialTreesProof struct {
+			EvalsProofs []EvalProofRaw `json:"evals_proofs"`
+		} `json:"initial_trees_proof"`
+		Steps []struct {
+			Evals       [][]uint64 `json:"evals"`
+			MerkleProof struct {
+				Siblings []string `json:"siblings"`
+			} `json:"merkle_proof"`
+		} `json:"steps"`
+	} `json:"query_round_proofs"`
+	FinalPoly  struct{ Coeffs [][]uint64 } `json:"final_poly"`
+	PowWitness uint64                       `json:"pow_witness"`
+}
+
 type ProofWithPublicInputsRaw struct {
 	Proof struct {
 		WiresCap                  []string `json:"wires_cap"`
@@ -20,24 +37,7 @@ type ProofWithPublicInputsRaw struct {
 			PartialProducts [][]uint64 `json:"partial_products"`
 			QuotientPolys   [][]uint64 `json:"quotient_polys"`
 		} `json:"openings"`
-		OpeningProof struct {
-			CommitPhaseMerkleCaps [][]string `json:"commit_phase_merkle_caps"`
-			QueryRoundProofs      []struct {
-				InitialTreesProof struct {
-					EvalsProofs []EvalProofRaw `json:"evals_proofs"`
-				} `json:"initial_trees_proof"`
-				Steps []struct {
-					Evals       [][]uint64 `json:"evals"`
-					MerkleProof struct {
-						Siblings []string `json:"siblings"`
-					} `json:"merkle_proof"`
-				} `json:"steps"`
-			} `json:"query_round_proofs"`
-			FinalPoly struct {
-				Coeffs [][]uint64 `json:"coeffs"`
-			} `json:"final_poly"`
-			PowWitness uint64 `json:"pow_witness"`
-		} `json:"opening_proof"`
+		OpeningProof OpeningProof `json:"opening_proof"`
 	} `json:"proof"`
 	PublicInputs []uint64 `json:"public_inputs"`
 }

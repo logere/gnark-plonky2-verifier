@@ -63,6 +63,7 @@ func StringArrayToHashBLS12381Array(rawHashes []string) []poseidon.BLS12381HashO
 }
 
 func DeserializeFriProof(openingProofRaw struct {
+	DegreeBits             uint64
 	CommitPhaseMerkleCaps [][]string
 	QueryRoundProofs      []struct {
 		InitialTreesProof struct {
@@ -111,6 +112,38 @@ func DeserializeFriProof(openingProofRaw struct {
 	return openingProof
 }
 
+func DeserializeFriProofFromRaw(openingProofRaw types.OpeningProof) FriProof {
+	var openingProof FriProof
+	openingProof.PowWitness = gl.NewVariable(openingProofRaw.PowWitness)
+	openingProof.FinalPoly.Coeffs = gl.Uint64ArrayToQuadraticExtensionArray(openingProofRaw.FinalPoly.Coeffs)
+
+	openingProof.CommitPhaseMerkleCaps = make([]FriMerkleCap, len(openingProofRaw.CommitPhaseMerkleCaps))
+	for i := 0; i < len(openingProofRaw.CommitPhaseMerkleCaps); i++ {
+		openingProof.CommitPhaseMerkleCaps[i] = StringArrayToHashBLS12381Array(openingProofRaw.CommitPhaseMerkleCaps[i])
+	}
+
+	numQueryRoundProofs := len(openingProofRaw.QueryRoundProofs)
+	openingProof.QueryRoundProofs = make([]FriQueryRound, numQueryRoundProofs)
+
+	for i := 0; i < numQueryRoundProofs; i++ {
+		numEvalProofs := len(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs)
+		openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs = make([]FriEvalProof, numEvalProofs)
+		for j := 0; j < numEvalProofs; j++ {
+			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].Elements = gl.Uint64ArrayToVariableArray(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].LeafElements)
+			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Siblings = StringArrayToHashBLS12381Array(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Hash)
+		}
+
+		numSteps := len(openingProofRaw.QueryRoundProofs[i].Steps)
+		openingProof.QueryRoundProofs[i].Steps = make([]FriQueryStep, numSteps)
+		for j := 0; j < numSteps; j++ {
+			openingProof.QueryRoundProofs[i].Steps[j].Evals = gl.Uint64ArrayToQuadraticExtensionArray(openingProofRaw.QueryRoundProofs[i].Steps[j].Evals)
+			openingProof.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings = StringArrayToHashBLS12381Array(openingProofRaw.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings)
+		}
+	}
+
+	return openingProof
+}
+
 func DeserializeProofWithPublicInputs(raw types.ProofWithPublicInputsRaw) ProofWithPublicInputs {
 	var proofWithPis ProofWithPublicInputs
 	proofWithPis.Proof.WiresCap = DeserializeMerkleCap(raw.Proof.WiresCap)
@@ -125,22 +158,7 @@ func DeserializeProofWithPublicInputs(raw types.ProofWithPublicInputsRaw) ProofW
 		PartialProducts [][]uint64
 		QuotientPolys   [][]uint64
 	}(raw.Proof.Openings))
-	proofWithPis.Proof.OpeningProof = DeserializeFriProof(struct {
-		CommitPhaseMerkleCaps [][]string
-		QueryRoundProofs      []struct {
-			InitialTreesProof struct {
-				EvalsProofs []types.EvalProofRaw
-			}
-			Steps []struct {
-				Evals       [][]uint64
-				MerkleProof struct {
-					Siblings []string
-				}
-			}
-		}
-		FinalPoly  struct{ Coeffs [][]uint64 }
-		PowWitness uint64
-	}(raw.Proof.OpeningProof))
+	proofWithPis.Proof.OpeningProof = DeserializeFriProofFromRaw(raw.Proof.OpeningProof)
 	proofWithPis.PublicInputs = gl.Uint64ArrayToVariableArray(raw.PublicInputs)
 
 	return proofWithPis

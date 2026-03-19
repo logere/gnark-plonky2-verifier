@@ -87,6 +87,7 @@ func ReadCommonCircuitData(path string) CommonCircuitData {
 	commonCircuitData.Config.FriConfig.CapHeight = raw.Config.FriConfig.CapHeight
 	commonCircuitData.Config.FriConfig.ProofOfWorkBits = raw.Config.FriConfig.ProofOfWorkBits
 	commonCircuitData.Config.FriConfig.NumQueryRounds = raw.Config.FriConfig.NumQueryRounds
+	parseReductionStrategy(raw.Config.FriConfig.ReductionStrategy, &commonCircuitData.Config.FriConfig.ReductionStrategy)
 
 	commonCircuitData.FriParams.DegreeBits = raw.FriParams.DegreeBits
 	commonCircuitData.DegreeBits = raw.FriParams.DegreeBits
@@ -94,6 +95,7 @@ func ReadCommonCircuitData(path string) CommonCircuitData {
 	commonCircuitData.FriParams.Config.CapHeight = raw.FriParams.Config.CapHeight
 	commonCircuitData.FriParams.Config.ProofOfWorkBits = raw.FriParams.Config.ProofOfWorkBits
 	commonCircuitData.FriParams.Config.NumQueryRounds = raw.FriParams.Config.NumQueryRounds
+	parseReductionStrategy(raw.FriParams.Config.ReductionStrategy, &commonCircuitData.FriParams.Config.ReductionStrategy)
 	commonCircuitData.FriParams.ReductionArityBits = raw.FriParams.ReductionArityBits
 
 	commonCircuitData.GateIds = raw.Gates
@@ -126,6 +128,24 @@ func ReadCommonCircuitData(path string) CommonCircuitData {
 	return commonCircuitData
 }
 
+// parseReductionStrategy parses the JSON reduction strategy and populates the FriReductionStrategy struct.
+// The JSON format is: {"ConstantArityBits": [4, 5]} or {"Fixed": [1,2,3]} or {"MinSize": 4}
+func parseReductionStrategy(rawStrategy struct {
+	ConstantArityBits []uint64 `json:"ConstantArityBits"`
+}, strategy *FriReductionStrategy) {
+	if len(rawStrategy.ConstantArityBits) == 2 {
+		strategy.Variant = 1 // ConstantArityBits
+		strategy.ArityBits = rawStrategy.ConstantArityBits[0]
+		strategy.FinalPolyBits = rawStrategy.ConstantArityBits[1]
+	} else if len(rawStrategy.ConstantArityBits) > 2 {
+		strategy.Variant = 0 // Fixed
+		strategy.FixedArityBits = rawStrategy.ConstantArityBits
+	} else {
+		strategy.Variant = 2 // MinSize with None
+		strategy.MaxArityBits = 0
+	}
+}
+
 func ReadCommonCircuitDataRaw(common_circuit_data_str string) CommonCircuitData {
 	var raw CommonCircuitDataRaw
 	if err := json.Unmarshal([]byte(common_circuit_data_str), &raw); err != nil {
@@ -146,6 +166,7 @@ func ReadCommonCircuitDataRaw(common_circuit_data_str string) CommonCircuitData 
 	commonCircuitData.Config.FriConfig.CapHeight = raw.Config.FriConfig.CapHeight
 	commonCircuitData.Config.FriConfig.ProofOfWorkBits = raw.Config.FriConfig.ProofOfWorkBits
 	commonCircuitData.Config.FriConfig.NumQueryRounds = raw.Config.FriConfig.NumQueryRounds
+	parseReductionStrategy(raw.Config.FriConfig.ReductionStrategy, &commonCircuitData.Config.FriConfig.ReductionStrategy)
 
 	commonCircuitData.FriParams.DegreeBits = raw.FriParams.DegreeBits
 	commonCircuitData.DegreeBits = raw.FriParams.DegreeBits
@@ -153,6 +174,7 @@ func ReadCommonCircuitDataRaw(common_circuit_data_str string) CommonCircuitData 
 	commonCircuitData.FriParams.Config.CapHeight = raw.FriParams.Config.CapHeight
 	commonCircuitData.FriParams.Config.ProofOfWorkBits = raw.FriParams.Config.ProofOfWorkBits
 	commonCircuitData.FriParams.Config.NumQueryRounds = raw.FriParams.Config.NumQueryRounds
+	parseReductionStrategy(raw.FriParams.Config.ReductionStrategy, &commonCircuitData.FriParams.Config.ReductionStrategy)
 	commonCircuitData.FriParams.ReductionArityBits = raw.FriParams.ReductionArityBits
 
 	commonCircuitData.GateIds = raw.Gates

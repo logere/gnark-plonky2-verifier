@@ -3,9 +3,9 @@ package fri
 import (
 	"math"
 
-	"github.com/consensys/gnark-crypto/field/goldilocks"
 	"github.com/cf/gnark-plonky2-verifier/types"
 	"github.com/cf/gnark-plonky2-verifier/variables"
+	"github.com/consensys/gnark-crypto/field/goldilocks"
 )
 
 type PolynomialInfo struct {

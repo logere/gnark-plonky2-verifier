@@ -47,14 +47,47 @@ func (c *VerifierChip) GetChallenges(
 	publicInputsHash poseidon.GoldilocksHashOut,
 	verifierData variables.VerifierOnlyCircuitData,
 ) variables.ProofChallenges {
-	config := c.commonData.Config
-	numChallenges := config.NumChallenges
+	friConfig := c.commonData.FriParams.Config
+	numChallenges := c.commonData.Config.NumChallenges
 	challenger := challenger.NewChip(c.api)
 
-	var circuitDigest = verifierData.CircuitDigest
-
-	challenger.ObserveBLS12381Hash(circuitDigest)
+	// Challenge order matching plonky2-hwa prover (see plonky2/src/plonk/get_challenges.rs)
+	// Observes fri_params (FriParams::observe), which includes FriConfig then extra FriParams fields.
+	// 1a. Observe FRI config (rate_bits, cap_height, proof_of_work_bits, reduction_strategy.serialize(), num_query_rounds)
+	challenger.ObserveElement(gl.NewVariable(friConfig.RateBits))
+	challenger.ObserveElement(gl.NewVariable(friConfig.CapHeight))
+	challenger.ObserveElement(gl.NewVariable(friConfig.ProofOfWorkBits))
+	// Observe reduction strategy (variant indicator + params based on strategy type)
+	challenger.ObserveElement(gl.NewVariable(friConfig.ReductionStrategy.Variant))
+	if friConfig.ReductionStrategy.Variant == 0 {
+		// Fixed strategy: observe all arity bits
+		for _, arityBit := range friConfig.ReductionStrategy.FixedArityBits {
+			challenger.ObserveElement(gl.NewVariable(arityBit))
+		}
+	} else if friConfig.ReductionStrategy.Variant == 1 {
+		// ConstantArityBits strategy: observe arity_bits and final_poly_bits
+		challenger.ObserveElement(gl.NewVariable(friConfig.ReductionStrategy.ArityBits))
+		challenger.ObserveElement(gl.NewVariable(friConfig.ReductionStrategy.FinalPolyBits))
+	} else {
+		// MinSize strategy: observe max_arity_bits (0 if None)
+		challenger.ObserveElement(gl.NewVariable(friConfig.ReductionStrategy.MaxArityBits))
+	}
+	challenger.ObserveElement(gl.NewVariable(friConfig.NumQueryRounds))
+	// 1b. Observe extra FriParams fields (hiding, degree_bits, reduction_arity_bits)
+	// These are observed by FriParams::observe in plonky2-hwa but were missing here.
+	hidingVal := uint64(0)
+	if c.commonData.FriParams.Hiding {
+		hidingVal = 1
+	}
+	challenger.ObserveElement(gl.NewVariable(hidingVal))
+	challenger.ObserveElement(gl.NewVariable(c.commonData.FriParams.DegreeBits))
+	for _, arityBit := range c.commonData.FriParams.ReductionArityBits {
+		challenger.ObserveElement(gl.NewVariable(arityBit))
+	}
+	// 2. Observe circuit digest and public inputs hash
+	challenger.ObserveBLS12381Hash(verifierData.CircuitDigest)
 	challenger.ObserveHash(publicInputsHash)
+	// 3. Observe caps and get challenges
 	challenger.ObserveCap(proof.WiresCap)
 	plonkBetas := challenger.GetNChallenges(numChallenges)
 	plonkGammas := challenger.GetNChallenges(numChallenges)
@@ -64,17 +97,20 @@ func (c *VerifierChip) GetChallenges(
 	plonkZeta := challenger.GetExtensionChallenge()
 	challenger.ObserveOpenings(c.friChip.ToOpenings(proof.Openings))
 
+	friChallenges := challenger.GetFriChallenges(
+		proof.OpeningProof.CommitPhaseMerkleCaps,
+		proof.OpeningProof.FinalPoly,
+		proof.OpeningProof.PowWitness,
+		uint64(c.commonData.FriParams.DegreeBits),
+		friConfig,
+	)
+
 	return variables.ProofChallenges{
-		PlonkBetas:  plonkBetas,
-		PlonkGammas: plonkGammas,
-		PlonkAlphas: plonkAlphas,
-		PlonkZeta:   plonkZeta,
-		FriChallenges: challenger.GetFriChallenges(
-			proof.OpeningProof.CommitPhaseMerkleCaps,
-			proof.OpeningProof.FinalPoly,
-			proof.OpeningProof.PowWitness,
-			config.FriConfig,
-		),
+		PlonkBetas:    plonkBetas,
+		PlonkGammas:   plonkGammas,
+		PlonkAlphas:   plonkAlphas,
+		PlonkZeta:     plonkZeta,
+		FriChallenges: friChallenges,
 	}
 }
 
