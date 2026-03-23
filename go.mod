@@ -5,7 +5,7 @@ go 1.21.4
 toolchain go1.22.3
 
 require (
-	github.com/GopherJ/doge-covenant v0.0.0-20240528041845-435d3d7c1391
+	github.com/GopherJ/doge-covenant v0.0.0-20260323110620-462c2b71c176
 	github.com/GopherJ/gnark-ignition-verifier v0.0.0-20240415111943-ecb54c32e4bb
 	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
 	github.com/rs/zerolog v1.34.0
@@ -34,3 +34,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/GopherJ/doge-covenant => github.com/logere/doge-covenant v0.0.0-20260323110620-462c2b71c176

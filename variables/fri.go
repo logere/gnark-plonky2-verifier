@@ -13,18 +13,18 @@ func NewPolynomialCoeffs(numCoeffs uint64) PolynomialCoeffs {
 	return PolynomialCoeffs{Coeffs: make([]gl.QuadraticExtensionVariable, numCoeffs)}
 }
 
-type FriMerkleCap = []poseidon.BLS12381HashOut
+type FriMerkleCap = []poseidon.BN254HashOut
 
 func NewFriMerkleCap(capHeight uint64) FriMerkleCap {
-	return make([]poseidon.BLS12381HashOut, 1<<capHeight)
+	return make([]poseidon.BN254HashOut, 1<<capHeight)
 }
 
 type FriMerkleProof struct {
-	Siblings []poseidon.BLS12381HashOut // Length = CircuitConfig.FriConfig.DegreeBits + CircuitConfig.FriConfig.RateBits - CircuitConfig.FriConfig.CapHeight
+	Siblings []poseidon.BN254HashOut // Length = CircuitConfig.FriConfig.DegreeBits + CircuitConfig.FriConfig.RateBits - CircuitConfig.FriConfig.CapHeight
 }
 
 func NewFriMerkleProof(merkleProofLen uint64) FriMerkleProof {
-	return FriMerkleProof{Siblings: make([]poseidon.BLS12381HashOut, merkleProofLen)}
+	return FriMerkleProof{Siblings: make([]poseidon.BN254HashOut, merkleProofLen)}
 }
 
 type FriEvalProof struct {

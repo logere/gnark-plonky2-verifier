@@ -29,18 +29,18 @@ func TestGoldilocksRangeCheck(t *testing.T) {
 	var circuit, witness TestGoldilocksRangeCheckCircuit
 
 	witness.X = 1
-	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BLS12_381), test.WithBackends(backend.GROTH16), test.NoSerializationChecks())
+	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BN254), test.WithBackends(backend.GROTH16), test.NoSerializationChecks())
 
 	witness.X = 0
-	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BLS12_381), test.WithBackends(backend.GROTH16), test.NoSerializationChecks())
+	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BN254), test.WithBackends(backend.GROTH16), test.NoSerializationChecks())
 
 	witness.X = MODULUS
-	assert.ProverFailed(&circuit, &witness, test.WithCurves(ecc.BLS12_381), test.WithBackends(backend.GROTH16), test.NoSerializationChecks())
+	assert.ProverFailed(&circuit, &witness, test.WithCurves(ecc.BN254), test.WithBackends(backend.GROTH16), test.NoSerializationChecks())
 
 	one := big.NewInt(1)
 	maxValidVal := new(big.Int).Sub(MODULUS, one)
 	witness.X = maxValidVal
-	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BLS12_381), test.WithBackends(backend.GROTH16))
+	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BN254), test.WithBackends(backend.GROTH16))
 }
 
 type TestGoldilocksRangeCheckBenchmarkCircuit struct {
@@ -67,7 +67,7 @@ func BenchmarkGoldilocksRangeCheck(b *testing.B) {
 			witness.X[j] = 1
 		}
 		p := profile.Start()
-		r1cs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), scs.NewBuilder, &circuit)
+		r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, &circuit)
 		if err != nil {
 			fmt.Println("error in building circuit", err)
 			os.Exit(1)
@@ -103,7 +103,7 @@ func TestGoldilocksMulAdd(t *testing.T) {
 	witness.Y = 2
 	witness.Z = 3
 	witness.ExpectedResult = 5
-	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BLS12_381), test.WithBackends(backend.GROTH16), test.NoFuzzing())
+	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BN254), test.WithBackends(backend.GROTH16), test.NoFuzzing())
 
 	bigOperand := new(big.Int).SetUint64(9223372036854775808)
 	expectedValue, _ := new(big.Int).SetString("18446744068340842500", 10)
@@ -112,5 +112,5 @@ func TestGoldilocksMulAdd(t *testing.T) {
 	witness.Y = bigOperand
 	witness.Z = 3
 	witness.ExpectedResult = expectedValue
-	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BLS12_381), test.WithBackends(backend.GROTH16), test.NoFuzzing())
+	assert.ProverSucceeded(&circuit, &witness, test.WithCurves(ecc.BN254), test.WithBackends(backend.GROTH16), test.NoFuzzing())
 }

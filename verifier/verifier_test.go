@@ -27,7 +27,7 @@ type CRVerifierCircuit struct {
 func (c *CRVerifierCircuit) Define(api frontend.API) error {
 	verifierChip := verifier.NewVerifierChip(api, c.CommonCircuitData)
 	if len(c.PublicInputs) != 2 {
-		panic("invalid public inputs, should contain 2 BLS12_381 elements")
+		panic("invalid public inputs, should contain 2 BN254 elements")
 	}
 	if len(c.OriginalPublicInputs) != 512 {
 		panic("invalid original public inputs, should contain 512 goldilocks elements")
@@ -101,7 +101,7 @@ func TestStepVerifier(t *testing.T) {
 			CommonCircuitData:       commonCircuitData,
 		}
 
-		err := test.IsSolved(&circuit, &witness, ecc.BLS12_381.ScalarField())
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.NoError(err)
 	}
 	testCase()

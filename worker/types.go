@@ -9,9 +9,9 @@ import (
 
 	"github.com/GopherJ/doge-covenant/serialize"
 	"github.com/consensys/gnark-crypto/ecc"
-	curve "github.com/consensys/gnark-crypto/ecc/bls12-381"
+	curve "github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/zilong-dai/gnark/backend/groth16"
-	bls12381 "github.com/zilong-dai/gnark/backend/groth16/bls12-381"
+	bn254 "github.com/zilong-dai/gnark/backend/groth16/bn254"
 	"github.com/zilong-dai/gnark/backend/witness"
 )
 
@@ -27,7 +27,7 @@ type G16ProofWithPublicInputs struct {
 }
 
 func Chunk(str string, chunk int) []string {
-	if len(str) < chunk*96 {
+	if len(str) < chunk*64 {
 		panic("proof field element string too short")
 	}
 	res := make([]string, chunk)
@@ -35,7 +35,7 @@ func Chunk(str string, chunk int) []string {
 	// chunkSize := len(str) / chunk
 
 	for i := 0; i < chunk; i++ {
-		res[i] = str[i*96 : (i+1)*96]
+		res[i] = str[i*64 : (i+1)*64]
 	}
 
 	return res
@@ -43,9 +43,9 @@ func Chunk(str string, chunk int) []string {
 
 func (p G16ProofWithPublicInputs) MarshalJSON() ([]byte, error) {
 
-	proof := p.Proof.(*bls12381.Proof)
+	proof := p.Proof.(*bn254.Proof)
 
-	var buf [48 * 2]byte
+	var buf [32 * 2]byte
 	var writer bytes.Buffer
 
 	for i := 0; i < len(proof.Commitments); i++ {
@@ -81,9 +81,9 @@ func (p G16ProofWithPublicInputs) MarshalJSON() ([]byte, error) {
 
 func NewG16ProofWithPublicInputs() *G16ProofWithPublicInputs {
 
-	proof := groth16.NewProof(ecc.BLS12_381)
+	proof := groth16.NewProof(ecc.BN254)
 
-	publicInputs, err := witness.New(ecc.BLS12_381.ScalarField())
+	publicInputs, err := witness.New(ecc.BN254.ScalarField())
 	if err != nil {
 		panic(err)
 	}
@@ -97,7 +97,7 @@ func NewG16ProofWithPublicInputs() *G16ProofWithPublicInputs {
 
 func FromCityProof(cityProof serialize.CityGroth16ProofData) (*G16ProofWithPublicInputs, error) {
 	g16ProofWithPublicInputs := NewG16ProofWithPublicInputs()
-	proof := g16ProofWithPublicInputs.Proof.(*bls12381.Proof)
+	proof := g16ProofWithPublicInputs.Proof.(*bn254.Proof)
 	ar, err := DeSerializeG1MCL(cityProof.PiA)
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize PiA: %w", err)
@@ -134,26 +134,26 @@ func FromCityProof(cityProof serialize.CityGroth16ProofData) (*G16ProofWithPubli
 
 func FromCityVk(cityVk serialize.CityGroth16VerifierData) (*G16VerifyingKey, error) {
 	g16VerifyingKey := NewG16VerifyingKey()
-	vk := g16VerifyingKey.VK.(*bls12381.VerifyingKey)
+	vk := g16VerifyingKey.VK.(*bn254.VerifyingKey)
 	alphag1, err := DeSerializeG1MCL(cityVk.AlphaG1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize alpha: %w", err)
 	}
 	vk.G1.Alpha = *alphag1
 
-	betag2, err := DeSerializeG2MCL(cityVk.BetaG2[:96], cityVk.BetaG2[96:])
+	betag2, err := DeSerializeG2MCL(cityVk.BetaG2[:64], cityVk.BetaG2[64:])
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize beta: %w", err)
 	}
 	vk.G2.Beta = *betag2
 
-	gammag2, err := DeSerializeG2MCL(cityVk.GammaG2[:96], cityVk.GammaG2[96:])
+	gammag2, err := DeSerializeG2MCL(cityVk.GammaG2[:64], cityVk.GammaG2[64:])
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize gamma: %w", err)
 	}
 	vk.G2.Gamma = *gammag2
 
-	deltag2, err := DeSerializeG2MCL(cityVk.DeltaG2[:96], cityVk.DeltaG2[96:])
+	deltag2, err := DeSerializeG2MCL(cityVk.DeltaG2[:64], cityVk.DeltaG2[64:])
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize delta: %w", err)
 	}
@@ -187,7 +187,7 @@ func FromCityVk(cityVk serialize.CityGroth16VerifierData) (*G16VerifyingKey, err
 }
 
 func (p *G16ProofWithPublicInputs) UnmarshalJSON(data []byte) error {
-	proof := p.Proof.(*bls12381.Proof)
+	proof := p.Proof.(*bn254.Proof)
 	var ProofString struct {
 		PiA           [2]string    `json:"pi_a"`
 		PiB           [2][2]string `json:"pi_b"`
@@ -233,10 +233,10 @@ func (p *G16ProofWithPublicInputs) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	len := len(com_bytes) / 96
+	len := len(com_bytes) / 64
 	proof.Commitments = make([]curve.G1Affine, len)
 	for i := 0; i < len; i++ {
-		err = proof.Commitments[i].Unmarshal(com_bytes[96*i : 96*(i+1)])
+		err = proof.Commitments[i].Unmarshal(com_bytes[64*i : 64*(i+1)])
 		if err != nil {
 			return err
 		}
@@ -272,7 +272,7 @@ type G16VerifyingKey struct {
 }
 
 func NewG16VerifyingKey() *G16VerifyingKey {
-	vk := groth16.NewVerifyingKey(ecc.BLS12_381)
+	vk := groth16.NewVerifyingKey(ecc.BN254)
 	return &G16VerifyingKey{
 		VK: vk,
 	}
@@ -309,8 +309,8 @@ func NewG16VerifyingKey() *G16VerifyingKey {
 // }
 
 func (gvk G16VerifyingKey) MarshalJSON() ([]byte, error) {
-	vk := gvk.VK.(*bls12381.VerifyingKey)
-	var buf [48 * 2]byte
+	vk := gvk.VK.(*bn254.VerifyingKey)
+	var buf [32 * 2]byte
 
 	gamma_abc_g1_arr := make([][]string, len(vk.G1.K))
 	for i := 0; i < len(vk.G1.K); i++ {
@@ -318,8 +318,8 @@ func (gvk G16VerifyingKey) MarshalJSON() ([]byte, error) {
 	}
 	for i := 0; i < len(vk.G1.K); i++ {
 		buf = vk.G1.K[i].RawBytes()
-		gamma_abc_g1_arr[i][0] = hex.EncodeToString(buf[:])[0:96]
-		gamma_abc_g1_arr[i][1] = hex.EncodeToString(buf[:])[96:192]
+		gamma_abc_g1_arr[i][0] = hex.EncodeToString(buf[:])[0:64]
+		gamma_abc_g1_arr[i][1] = hex.EncodeToString(buf[:])[64:128]
 	}
 
 	var comkey_writer bytes.Buffer
@@ -348,7 +348,7 @@ func (gvk G16VerifyingKey) MarshalJSON() ([]byte, error) {
 }
 
 func (gvk *G16VerifyingKey) UnmarshalJSON(data []byte) error {
-	vk := gvk.VK.(*bls12381.VerifyingKey)
+	vk := gvk.VK.(*bn254.VerifyingKey)
 	var VerifyingKeyString struct {
 		Alpha         [2]string    `json:"alpha_g1"`
 		K             [][]string   `json:"gamma_abc_g1"`

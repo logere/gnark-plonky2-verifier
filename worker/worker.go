@@ -14,9 +14,10 @@ import (
 	"github.com/cf/gnark-plonky2-verifier/variables"
 	"github.com/cf/gnark-plonky2-verifier/verifier"
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/rs/zerolog"
 	"github.com/zilong-dai/gnark/backend/groth16"
-	groth16_bls12381 "github.com/zilong-dai/gnark/backend/groth16/bls12-381"
+	groth16_bn254 "github.com/zilong-dai/gnark/backend/groth16/bn254"
 	"github.com/zilong-dai/gnark/backend/witness"
 	"github.com/zilong-dai/gnark/constraint"
 	csbls12381 "github.com/zilong-dai/gnark/constraint/bls12-381"
@@ -24,12 +25,11 @@ import (
 	csolver "github.com/zilong-dai/gnark/constraint/solver"
 	"github.com/zilong-dai/gnark/frontend"
 	"github.com/zilong-dai/gnark/frontend/cs/r1cs"
-	"github.com/rs/zerolog"
 )
 
 type PreparedCircuit struct {
-	PKey *groth16_bls12381.ProvingKey
-	VKey *groth16_bls12381.VerifyingKey
+	PKey *groth16_bn254.ProvingKey
+	VKey *groth16_bn254.VerifyingKey
 	CCS  *constraint.ConstraintSystem
 }
 
@@ -49,22 +49,22 @@ func Initialize(keystore_path string) {
 		panic("Initializing Keys not exist")
 	}
 
-	ccs, err = ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path, CIRCUIT_PATH))
+	ccs, err = ReadCircuit(ecc.BN254, filepath.Join(keystore_path, CIRCUIT_PATH))
 	if err != nil {
 		panic(err)
 	}
-	vk, err = ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path, VK_PATH))
+	vk, err = ReadVerifyingKey(ecc.BN254, filepath.Join(keystore_path, VK_PATH))
 	if err != nil {
 		panic(err)
 	}
-	pk, err = ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path, PK_PATH))
+	pk, err = ReadProvingKey(ecc.BN254, filepath.Join(keystore_path, PK_PATH))
 	if err != nil {
 		panic(err)
 	}
 
 	prepCircuit1.CCS = &ccs
-	prepCircuit1.PKey = pk.(*groth16_bls12381.ProvingKey)
-	prepCircuit1.VKey = vk.(*groth16_bls12381.VerifyingKey)
+	prepCircuit1.PKey = pk.(*groth16_bn254.ProvingKey)
+	prepCircuit1.VKey = vk.(*groth16_bn254.VerifyingKey)
 	fmt.Println("Initializing End...", time.Now().Format("2006-01-02 15:04:05"))
 }
 
@@ -82,7 +82,7 @@ type CRVerifierCircuit struct {
 func (c *CRVerifierCircuit) Define(api frontend.API) error {
 	verifierChip := verifier.NewVerifierChip(api, c.CommonCircuitData)
 	if len(c.PublicInputs) != 2 {
-		panic("invalid public inputs, should contain 2 BLS12_381 elements")
+		panic("invalid public inputs, should contain 2 BN254 elements")
 	}
 	if len(c.OriginalPublicInputs) != 512 {
 		panic("invalid original public inputs, should contain 512 goldilocks elements")
@@ -163,7 +163,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 
 	// NewWitness() must be called before Compile() to avoid gnark panicking.
 	// ref: https://github.com/Consensys/gnark/issues/1038
-	wit, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
+	wit, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		panic(err)
 	}
@@ -203,12 +203,12 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 		retries += 1
 	}
 
-	blsProof := proof.(*groth16_bls12381.Proof)
-	blsVk := vk
-	blsWitness := publicWitness.Vector().(fr.Vector)
+	bnProof := proof.(*groth16_bn254.Proof)
+	bnVk := vk
+	bnWitness := publicWitness.Vector().(fr.Vector)
 
 	original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
-		Proof:        blsProof,
+		Proof:        bnProof,
 		PublicInputs: publicWitness,
 	})
 	if err != nil {
@@ -224,7 +224,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	fmt.Println("proofString", string(original_proof_bytes))
 	fmt.Println("vkString", string(original_vk_bytes))
 
-	proof_city, err := serialize.ToJsonCityProof(blsProof, blsWitness)
+	proof_city, err := serialize.ToJsonCityProof(bnProof, bnWitness)
 	if err != nil {
 		panic(err)
 	}
@@ -232,7 +232,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	if err != nil {
 		panic(err)
 	}
-	vk_city, err := serialize.ToJsonCityVK(blsVk)
+	vk_city, err := serialize.ToJsonCityVK(bnVk)
 	if err != nil {
 		panic(err)
 	}
@@ -310,29 +310,29 @@ func VerifyProof(proofString string, vkString string) string {
 	return "true"
 }
 
-func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.ConstraintSystem, *groth16_bls12381.ProvingKey, *groth16_bls12381.VerifyingKey, error) {
+func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.ConstraintSystem, *groth16_bn254.ProvingKey, *groth16_bn254.VerifyingKey, error) {
 	if prepCircuit1.CCS != nil && prepCircuit1.PKey != nil && prepCircuit1.VKey != nil {
 		return prepCircuit1.CCS, prepCircuit1.PKey, prepCircuit1.VKey, nil
 	}
 	fmt.Println("you have to initialize all the keys first")
 	if CheckKeysExist(keystore_path) {
-		ccs, err := ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path, CIRCUIT_PATH))
+		ccs, err := ReadCircuit(ecc.BN254, filepath.Join(keystore_path, CIRCUIT_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		vk, err := ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path, VK_PATH))
+		vk, err := ReadVerifyingKey(ecc.BN254, filepath.Join(keystore_path, VK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		pk, err := ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path, PK_PATH))
+		pk, err := ReadProvingKey(ecc.BN254, filepath.Join(keystore_path, PK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		prepCircuit1.CCS = &ccs
-		prepCircuit1.PKey = pk.(*groth16_bls12381.ProvingKey)
-		prepCircuit1.VKey = vk.(*groth16_bls12381.VerifyingKey)
+		prepCircuit1.PKey = pk.(*groth16_bn254.ProvingKey)
+		prepCircuit1.VKey = vk.(*groth16_bn254.VerifyingKey)
 	} else {
-		ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, circuit)
+		ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, circuit)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -354,8 +354,8 @@ func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.Constr
 			return nil, nil, nil, err
 		}
 		prepCircuit1.CCS = &ccs
-		prepCircuit1.PKey = pk.(*groth16_bls12381.ProvingKey)
-		prepCircuit1.VKey = vk.(*groth16_bls12381.VerifyingKey)
+		prepCircuit1.PKey = pk.(*groth16_bn254.ProvingKey)
+		prepCircuit1.VKey = vk.(*groth16_bn254.VerifyingKey)
 	}
 
 	return prepCircuit1.CCS, prepCircuit1.PKey, prepCircuit1.VKey, nil

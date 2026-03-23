@@ -20,5 +20,5 @@ type ProofWithPublicInputs struct {
 
 type VerifierOnlyCircuitData struct {
 	ConstantSigmasCap FriMerkleCap
-	CircuitDigest     poseidon.BLS12381HashOut
+	CircuitDigest     poseidon.BN254HashOut
 }

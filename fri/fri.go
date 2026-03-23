@@ -15,11 +15,11 @@ import (
 )
 
 type Chip struct {
-	api                  frontend.API             `gnark:"-"`
-	gl                   *gl.Chip                 `gnark:"-"`
-	poseidonBLS12381Chip *poseidon.BLS12381Chip   `gnark:"-"`
-	commonData           *types.CommonCircuitData `gnark:"-"`
-	friParams            *types.FriParams         `gnark:"-"`
+	api               frontend.API             `gnark:"-"`
+	gl                *gl.Chip                 `gnark:"-"`
+	poseidonBN254Chip *poseidon.BN254Chip      `gnark:"-"`
+	commonData        *types.CommonCircuitData `gnark:"-"`
+	friParams         *types.FriParams         `gnark:"-"`
 }
 
 func NewChip(
@@ -27,13 +27,13 @@ func NewChip(
 	commonData *types.CommonCircuitData,
 	friParams *types.FriParams,
 ) *Chip {
-	poseidonBLS12381Chip := poseidon.NewBLS12381Chip(api)
+	poseidonBN254Chip := poseidon.NewBN254Chip(api)
 	return &Chip{
-		api:                  api,
-		poseidonBLS12381Chip: poseidonBLS12381Chip,
-		commonData:           commonData,
-		friParams:            friParams,
-		gl:                   gl.New(api),
+		api:               api,
+		poseidonBN254Chip: poseidonBN254Chip,
+		commonData:        commonData,
+		friParams:         friParams,
+		gl:                gl.New(api),
 	}
 }
 
@@ -101,16 +101,16 @@ func (f *Chip) verifyMerkleProofToCapWithCapIndex(
 	merkleCap variables.FriMerkleCap,
 	proof *variables.FriMerkleProof,
 ) {
-	currentDigest := f.poseidonBLS12381Chip.HashOrNoop(leafData)
+	currentDigest := f.poseidonBN254Chip.HashOrNoop(leafData)
 	for i, sibling := range proof.Siblings {
 		bit := leafIndexBits[i]
 
-		var inputs poseidon.BLS12381State
+		var inputs poseidon.BN254State
 		inputs[0] = frontend.Variable(0)
 		inputs[1] = frontend.Variable(0)
 		inputs[2] = f.api.Select(bit, sibling, currentDigest)
 		inputs[3] = f.api.Select(bit, currentDigest, sibling)
-		state := f.poseidonBLS12381Chip.Poseidon(inputs)
+		state := f.poseidonBN254Chip.Poseidon(inputs)
 
 		currentDigest = state[0]
 	}
@@ -128,7 +128,7 @@ func (f *Chip) verifyMerkleProofToCapWithCapIndex(
 	const NUM_LEAF_LOOKUPS = 4
 	// Each lookup gadget will connect to 4 merkleCap entries
 	const STRIDE_LENGTH = 4
-	var leafLookups [NUM_LEAF_LOOKUPS]poseidon.BLS12381HashOut
+	var leafLookups [NUM_LEAF_LOOKUPS]poseidon.BN254HashOut
 	// First create the "leaf" lookup2 circuits
 	// This will use the least significant bits of the capIndexBits array
 	for i := 0; i < NUM_LEAF_LOOKUPS; i++ {

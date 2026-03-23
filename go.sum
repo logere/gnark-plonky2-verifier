@@ -1,5 +1,3 @@
-github.com/GopherJ/doge-covenant v0.0.0-20240528041845-435d3d7c1391 h1:VolTaG2ntvD+RZRlmtTDqMPmd/KwCfRAH5l+v3Vm2To=
-github.com/GopherJ/doge-covenant v0.0.0-20240528041845-435d3d7c1391/go.mod h1:WCSRRrKwtTdcc5HzzVX4lwbHl0RwvOFUz+ddkAblIz4=
 github.com/GopherJ/gnark-ignition-verifier v0.0.0-20240415111943-ecb54c32e4bb h1:stZGm4c/Pn9yda+rhWKQl81EGgrIUuKf72to476JqFc=
 github.com/GopherJ/gnark-ignition-verifier v0.0.0-20240415111943-ecb54c32e4bb/go.mod h1:5OGlD6B9ePz0Vf3JHK0/f9SYTmvumOSEQh16KgYa+KE=
 github.com/bits-and-blooms/bitset v1.8.0 h1:FD+XqgOZDUxxZ8hzoBFuV9+cGWY9CslN6d5MS5JVb4c=
@@ -31,6 +29,8 @@ github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/leanovate/gopter v0.2.9 h1:fQjYxZaynp97ozCzfOyOuAGOU4aU/z37zf/tOujFk7c=
 github.com/leanovate/gopter v0.2.9/go.mod h1:U2L/78B+KVFIx2VmW6onHJQzXtFb+p5y3y2Sh+Jxxv8=
+github.com/logere/doge-covenant v0.0.0-20260323110620-462c2b71c176 h1:hEtsNqQmxFAal5bFKvn+s+W5MfDOpSY5pmvE8QBB/QI=
+github.com/logere/doge-covenant v0.0.0-20260323110620-462c2b71c176/go.mod h1:WCSRRrKwtTdcc5HzzVX4lwbHl0RwvOFUz+ddkAblIz4=
 github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvA=
 github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovkB8vQcUbaXHg=
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=

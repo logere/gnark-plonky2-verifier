@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	curve "github.com/consensys/gnark-crypto/ecc/bls12-381"
-	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
+	curve "github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	"github.com/zilong-dai/gnark/backend/groth16"
 	"github.com/zilong-dai/gnark/backend/witness"
 	"github.com/zilong-dai/gnark/constraint"

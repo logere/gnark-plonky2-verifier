@@ -12,10 +12,13 @@ use crate::parameters::Groth16WrapperParameters;
 pub mod parameters;
 
 pub mod fr;
+pub mod fr_bn254;
 pub mod logger;
 pub mod plonky2_config;
 pub mod poseidon_bls12_381;
 pub mod poseidon_bls12_381_constants;
+pub mod poseidon_bn254;
+pub mod poseidon_bn254_constants;
 
 pub type F = GoldilocksField;
 pub type C = PoseidonGoldilocksConfig;

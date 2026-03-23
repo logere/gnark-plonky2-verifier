@@ -12,16 +12,16 @@ import (
 	"github.com/cf/gnark-plonky2-verifier/variables"
 	"github.com/cf/gnark-plonky2-verifier/verifier"
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/rs/zerolog"
 	"github.com/zilong-dai/gnark/backend/groth16"
 	"github.com/zilong-dai/gnark/backend/witness"
 	"github.com/zilong-dai/gnark/constraint"
-	csbls12381 "github.com/zilong-dai/gnark/constraint/bls12-381"
+	csbn254 "github.com/zilong-dai/gnark/constraint/bn254"
 	csolver "github.com/zilong-dai/gnark/constraint/solver"
 	"github.com/zilong-dai/gnark/frontend"
 	"github.com/zilong-dai/gnark/frontend/cs/r1cs"
 	"github.com/zilong-dai/gnark/frontend/cs/scs"
 	"github.com/zilong-dai/gnark/profile"
-	"github.com/rs/zerolog"
 )
 
 func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool, dummy bool, saveArtifacts bool) {
@@ -52,7 +52,7 @@ func runBenchmark(plonky2Circuit string, proofSystem string, profileCircuit bool
 		os.Exit(1)
 	}
 
-	r1cs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), builder, &circuit)
+	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), builder, &circuit)
 	if err != nil {
 		fmt.Println("error in building circuit", err)
 		os.Exit(1)
@@ -129,7 +129,7 @@ func groth16Proof(r1cs constraint.ConstraintSystem, circuitName string, dummy bo
 	}
 
 	fmt.Println("Generating witness", time.Now())
-	wit, _ := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
+	wit, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err := debugUnsatisfiedConstraint(r1cs, wit); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -205,7 +205,7 @@ func debugUnsatisfiedConstraint(ccs constraint.ConstraintSystem, wit witness.Wit
 		fmt.Printf("IsSolved failed: %v\n", err)
 		cid := -1
 		switch e := err.(type) {
-		case *csbls12381.UnsatisfiedConstraintError:
+		case *csbn254.UnsatisfiedConstraintError:
 			cid = e.CID
 		}
 		if cid >= 0 {

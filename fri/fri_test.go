@@ -3,15 +3,15 @@ package fri_test
 import (
 	"testing"
 
-	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/zilong-dai/gnark/frontend"
-	"github.com/zilong-dai/gnark/test"
 	"github.com/cf/gnark-plonky2-verifier/challenger"
 	"github.com/cf/gnark-plonky2-verifier/fri"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
 	"github.com/cf/gnark-plonky2-verifier/poseidon"
 	"github.com/cf/gnark-plonky2-verifier/types"
 	"github.com/cf/gnark-plonky2-verifier/variables"
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/zilong-dai/gnark/frontend"
+	"github.com/zilong-dai/gnark/test"
 )
 
 type TestFriCircuit struct {
@@ -30,7 +30,7 @@ func (circuit *TestFriCircuit) Define(api frontend.API) error {
 	friChip := fri.NewChip(api, &commonCircuitData, &commonCircuitData.FriParams)
 	challengerChip := challenger.NewChip(api)
 
-	challengerChip.ObserveBLS12381Hash(verifierOnlyCircuitData.CircuitDigest)
+	challengerChip.ObserveBN254Hash(verifierOnlyCircuitData.CircuitDigest)
 	challengerChip.ObserveHash(poseidonChip.HashNoPad(proofWithPis.PublicInputs))
 	challengerChip.ObserveCap(proofWithPis.Proof.WiresCap)
 	plonkBetas := challengerChip.GetNChallenges(commonCircuitData.Config.NumChallenges) // For plonk betas
@@ -125,7 +125,7 @@ func TestDecodeBlockFriVerification(t *testing.T) {
 			verifierOnlyCircuitData,
 			commonCircuitData,
 		}
-		err := test.IsSolved(&circuit, &witness, ecc.BLS12_381.ScalarField())
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.NoError(err)
 	}
 

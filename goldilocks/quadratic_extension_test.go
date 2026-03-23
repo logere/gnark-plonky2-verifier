@@ -46,7 +46,7 @@ func TestQuadraticExtensionMul4(t *testing.T) {
 		Operand2:       operand2,
 		ExpectedResult: expectedResult,
 	}
-	err := test.IsSolved(&circuit, &witness, ecc.BLS12_381.ScalarField())
+	err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 	assert.NoError(err)
 }
 
@@ -89,6 +89,6 @@ func TestQuadraticExtensionDiv(t *testing.T) {
 		Operand2:       operand2,
 		ExpectedResult: expectedResult,
 	}
-	err := test.IsSolved(&circuit, &witness, ecc.BLS12_381.ScalarField())
+	err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 	assert.NoError(err)
 }

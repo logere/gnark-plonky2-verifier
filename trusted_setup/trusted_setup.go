@@ -4,19 +4,19 @@ import (
 	"log"
 	"os"
 
-	"github.com/consensys/gnark-crypto/ecc/bls12-381"
-	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
-	kzg_bls12_381 "github.com/consensys/gnark-crypto/ecc/bls12-381/kzg"
 	"github.com/GopherJ/gnark-ignition-verifier/ignition"
+	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	kzg_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/kzg"
 )
 
-func sanityCheck(srs *kzg_bls12_381.SRS) {
+func sanityCheck(srs *kzg_bn254.SRS) {
 	// we can now use the SRS to verify a proof
 	// create a polynomial
 	f := randomPolynomial(60)
 
 	// commit the polynomial
-	digest, err := kzg_bls12_381.Commit(f, srs.Pk)
+	digest, err := kzg_bn254.Commit(f, srs.Pk)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func sanityCheck(srs *kzg_bls12_381.SRS) {
 	// compute opening proof at a random point
 	var point fr.Element
 	point.SetString("4321")
-	proof, err := kzg_bls12_381.Open(f, point, srs.Pk)
+	proof, err := kzg_bn254.Open(f, point, srs.Pk)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func sanityCheck(srs *kzg_bls12_381.SRS) {
 	}
 
 	// verify correct proof
-	err = kzg_bls12_381.Verify(&digest, &proof, point, srs.Vk)
+	err = kzg_bn254.Verify(&digest, &proof, point, srs.Vk)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,15 +111,15 @@ func DownloadAndSaveAztecIgnitionSrs(startIdx int, fileName string) {
 
 	log.Println("success ✅: all contributions are valid")
 
-	_, _, _, g2gen := bls12381.Generators()
-	// we use the last contribution to build a kzg SRS for bls12381
-	srs := kzg_bls12_381.SRS{
-		Pk: kzg_bls12_381.ProvingKey{
+	_, _, _, g2gen := bn254.Generators()
+	// we use the last contribution to build a kzg SRS for bn254
+	srs := kzg_bn254.SRS{
+		Pk: kzg_bn254.ProvingKey{
 			G1: next.G1,
 		},
-		Vk: kzg_bls12_381.VerifyingKey{
+		Vk: kzg_bn254.VerifyingKey{
 			G1: next.G1[0],
-			G2: [2]bls12381.G2Affine{
+			G2: [2]bn254.G2Affine{
 				g2gen,
 				next.G2[0],
 			},

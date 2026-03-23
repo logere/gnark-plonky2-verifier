@@ -3,15 +3,15 @@ package variables
 import (
 	"math/big"
 
-	"github.com/zilong-dai/gnark/frontend"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
 	"github.com/cf/gnark-plonky2-verifier/poseidon"
 	"github.com/cf/gnark-plonky2-verifier/types"
+	"github.com/zilong-dai/gnark/frontend"
 )
 
 func DeserializeMerkleCap(merkleCapRaw []string) FriMerkleCap {
 	n := len(merkleCapRaw)
-	merkleCap := make([]poseidon.BLS12381HashOut, n)
+	merkleCap := make([]poseidon.BN254HashOut, n)
 	for i := 0; i < n; i++ {
 		capBigInt, _ := new(big.Int).SetString(merkleCapRaw[i], 10)
 		merkleCap[i] = frontend.Variable(capBigInt)
@@ -22,7 +22,7 @@ func DeserializeMerkleCap(merkleCapRaw []string) FriMerkleCap {
 func DeserializeMerkleProof(merkleProofRaw struct{ Siblings []interface{} }) FriMerkleProof {
 	n := len(merkleProofRaw.Siblings)
 	var mp FriMerkleProof
-	mp.Siblings = make([]poseidon.BLS12381HashOut, n)
+	mp.Siblings = make([]poseidon.BN254HashOut, n)
 	for i := 0; i < n; i++ {
 		element := merkleProofRaw.Siblings[i].(struct{ Elements []uint64 })
 		mp.Siblings[i] = gl.Uint64ArrayToVariableArray(element.Elements)
@@ -50,20 +50,20 @@ func DeserializeOpeningSet(openingSetRaw struct {
 	}
 }
 
-func StringArrayToHashBLS12381Array(rawHashes []string) []poseidon.BLS12381HashOut {
-	hashes := []poseidon.BLS12381HashOut{}
+func StringArrayToHashBN254Array(rawHashes []string) []poseidon.BN254HashOut {
+	hashes := []poseidon.BN254HashOut{}
 
 	for i := 0; i < len(rawHashes); i++ {
 		hashBigInt, _ := new(big.Int).SetString(rawHashes[i], 10)
 		hashVar := frontend.Variable(hashBigInt)
-		hashes = append(hashes, poseidon.BLS12381HashOut(hashVar))
+		hashes = append(hashes, poseidon.BN254HashOut(hashVar))
 	}
 
 	return hashes
 }
 
 func DeserializeFriProof(openingProofRaw struct {
-	DegreeBits             uint64
+	DegreeBits            uint64
 	CommitPhaseMerkleCaps [][]string
 	QueryRoundProofs      []struct {
 		InitialTreesProof struct {
@@ -87,7 +87,7 @@ func DeserializeFriProof(openingProofRaw struct {
 
 	openingProof.CommitPhaseMerkleCaps = make([]FriMerkleCap, len(openingProofRaw.CommitPhaseMerkleCaps))
 	for i := 0; i < len(openingProofRaw.CommitPhaseMerkleCaps); i++ {
-		openingProof.CommitPhaseMerkleCaps[i] = StringArrayToHashBLS12381Array(openingProofRaw.CommitPhaseMerkleCaps[i])
+		openingProof.CommitPhaseMerkleCaps[i] = StringArrayToHashBN254Array(openingProofRaw.CommitPhaseMerkleCaps[i])
 	}
 
 	numQueryRoundProofs := len(openingProofRaw.QueryRoundProofs)
@@ -98,14 +98,14 @@ func DeserializeFriProof(openingProofRaw struct {
 		openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs = make([]FriEvalProof, numEvalProofs)
 		for j := 0; j < numEvalProofs; j++ {
 			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].Elements = gl.Uint64ArrayToVariableArray(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].LeafElements)
-			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Siblings = StringArrayToHashBLS12381Array(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Hash)
+			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Siblings = StringArrayToHashBN254Array(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Hash)
 		}
 
 		numSteps := len(openingProofRaw.QueryRoundProofs[i].Steps)
 		openingProof.QueryRoundProofs[i].Steps = make([]FriQueryStep, numSteps)
 		for j := 0; j < numSteps; j++ {
 			openingProof.QueryRoundProofs[i].Steps[j].Evals = gl.Uint64ArrayToQuadraticExtensionArray(openingProofRaw.QueryRoundProofs[i].Steps[j].Evals)
-			openingProof.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings = StringArrayToHashBLS12381Array(openingProofRaw.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings)
+			openingProof.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings = StringArrayToHashBN254Array(openingProofRaw.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings)
 		}
 	}
 
@@ -119,7 +119,7 @@ func DeserializeFriProofFromRaw(openingProofRaw types.OpeningProof) FriProof {
 
 	openingProof.CommitPhaseMerkleCaps = make([]FriMerkleCap, len(openingProofRaw.CommitPhaseMerkleCaps))
 	for i := 0; i < len(openingProofRaw.CommitPhaseMerkleCaps); i++ {
-		openingProof.CommitPhaseMerkleCaps[i] = StringArrayToHashBLS12381Array(openingProofRaw.CommitPhaseMerkleCaps[i])
+		openingProof.CommitPhaseMerkleCaps[i] = StringArrayToHashBN254Array(openingProofRaw.CommitPhaseMerkleCaps[i])
 	}
 
 	numQueryRoundProofs := len(openingProofRaw.QueryRoundProofs)
@@ -130,14 +130,14 @@ func DeserializeFriProofFromRaw(openingProofRaw types.OpeningProof) FriProof {
 		openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs = make([]FriEvalProof, numEvalProofs)
 		for j := 0; j < numEvalProofs; j++ {
 			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].Elements = gl.Uint64ArrayToVariableArray(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].LeafElements)
-			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Siblings = StringArrayToHashBLS12381Array(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Hash)
+			openingProof.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Siblings = StringArrayToHashBN254Array(openingProofRaw.QueryRoundProofs[i].InitialTreesProof.EvalsProofs[j].MerkleProof.Hash)
 		}
 
 		numSteps := len(openingProofRaw.QueryRoundProofs[i].Steps)
 		openingProof.QueryRoundProofs[i].Steps = make([]FriQueryStep, numSteps)
 		for j := 0; j < numSteps; j++ {
 			openingProof.QueryRoundProofs[i].Steps[j].Evals = gl.Uint64ArrayToQuadraticExtensionArray(openingProofRaw.QueryRoundProofs[i].Steps[j].Evals)
-			openingProof.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings = StringArrayToHashBLS12381Array(openingProofRaw.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings)
+			openingProof.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings = StringArrayToHashBN254Array(openingProofRaw.QueryRoundProofs[i].Steps[j].MerkleProof.Siblings)
 		}
 	}
 
@@ -169,6 +169,6 @@ func DeserializeVerifierOnlyCircuitData(raw types.VerifierOnlyCircuitDataRaw) Ve
 	verifierOnlyCircuitData.ConstantSigmasCap = DeserializeMerkleCap(raw.ConstantsSigmasCap)
 	circuitDigestBigInt, _ := new(big.Int).SetString(raw.CircuitDigest, 10)
 	circuitDigestVar := frontend.Variable(circuitDigestBigInt)
-	verifierOnlyCircuitData.CircuitDigest = poseidon.BLS12381HashOut(circuitDigestVar)
+	verifierOnlyCircuitData.CircuitDigest = poseidon.BN254HashOut(circuitDigestVar)
 	return verifierOnlyCircuitData
 }

@@ -3,18 +3,18 @@ package challenger
 import (
 	"fmt"
 
-	"github.com/zilong-dai/gnark/frontend"
 	"github.com/cf/gnark-plonky2-verifier/fri"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
 	"github.com/cf/gnark-plonky2-verifier/poseidon"
 	"github.com/cf/gnark-plonky2-verifier/types"
 	"github.com/cf/gnark-plonky2-verifier/variables"
+	"github.com/zilong-dai/gnark/frontend"
 )
 
 type Chip struct {
 	api               frontend.API `gnark:"-"`
 	poseidonChip      *poseidon.GoldilocksChip
-	poseidonBLS12381Chip *poseidon.BLS12381Chip
+	poseidonBN254Chip *poseidon.BN254Chip
 	spongeState       poseidon.GoldilocksState
 	inputBuffer       []gl.Variable
 	outputBuffer      []gl.Variable
@@ -28,11 +28,11 @@ func NewChip(api frontend.API) *Chip {
 		spongeState[i] = gl.Zero()
 	}
 	poseidonChip := poseidon.NewGoldilocksChip(api)
-	poseidonBLS12381Chip := poseidon.NewBLS12381Chip(api)
+	poseidonBN254Chip := poseidon.NewBN254Chip(api)
 	return &Chip{
 		api:               api,
 		poseidonChip:      poseidonChip,
-		poseidonBLS12381Chip: poseidonBLS12381Chip,
+		poseidonBN254Chip: poseidonBN254Chip,
 		spongeState:       spongeState,
 		inputBuffer:       inputBuffer,
 		outputBuffer:      outputBuffer,
@@ -59,14 +59,14 @@ func (c *Chip) ObserveHash(hash poseidon.GoldilocksHashOut) {
 	c.ObserveElements(elements)
 }
 
-func (c *Chip) ObserveBLS12381Hash(hash poseidon.BLS12381HashOut) {
-	elements := c.poseidonBLS12381Chip.ToVec(hash)
+func (c *Chip) ObserveBN254Hash(hash poseidon.BN254HashOut) {
+	elements := c.poseidonBN254Chip.ToVec(hash)
 	c.ObserveElements(elements)
 }
 
-func (c *Chip) ObserveCap(cap []poseidon.BLS12381HashOut) {
+func (c *Chip) ObserveCap(cap []poseidon.BN254HashOut) {
 	for i := 0; i < len(cap); i++ {
-		c.ObserveBLS12381Hash(cap[i])
+		c.ObserveBN254Hash(cap[i])
 	}
 }
 
