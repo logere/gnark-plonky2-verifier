@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -25,6 +26,9 @@ import (
 	csolver "github.com/zilong-dai/gnark/constraint/solver"
 	"github.com/zilong-dai/gnark/frontend"
 	"github.com/zilong-dai/gnark/frontend/cs/r1cs"
+	"github.com/zilong-dai/gnark/std/hash/sha3"
+	"github.com/zilong-dai/gnark/std/math/uints"
+	gosha3 "golang.org/x/crypto/sha3"
 )
 
 type PreparedCircuit struct {
@@ -84,25 +88,46 @@ func (c *CRVerifierCircuit) Define(api frontend.API) error {
 	if len(c.PublicInputs) != 2 {
 		panic("invalid public inputs, should contain 2 BN254 elements")
 	}
-	if len(c.OriginalPublicInputs) != 512 {
-		panic("invalid original public inputs, should contain 512 goldilocks elements")
+	if len(c.OriginalPublicInputs) != 52 {
+		panic("invalid original public inputs, should contain 52 goldilocks elements")
 	}
 
-	two := big.NewInt(2)
-
-	blockStateHashAcc := frontend.Variable(0)
-	sighashAcc := frontend.Variable(0)
-	for i := 255; i >= 0; i-- {
-		blockStateHashAcc = api.Mul(blockStateHashAcc, two)
-		blockStateHashAcc = api.Add(blockStateHashAcc, c.OriginalPublicInputs[i].Limb)
+	uapi, err := uints.New[uints.U64](api)
+	if err != nil {
+		return err
 	}
-	for i := 511; i >= 256; i-- {
-		sighashAcc = api.Mul(sighashAcc, two)
-		sighashAcc = api.Add(sighashAcc, c.OriginalPublicInputs[i].Limb)
+	keccak, err := sha3.NewLegacyKeccak256(api)
+	if err != nil {
+		return err
 	}
 
-	api.AssertIsEqual(c.PublicInputs[0], blockStateHashAcc)
-	api.AssertIsEqual(c.PublicInputs[1], sighashAcc)
+	// Convert 52 goldilocks u64 values to 416 bytes (big-endian per u64)
+	allBytes := make([]uints.U8, 0, 416)
+	for i := 0; i < 52; i++ {
+		u64Val := uapi.ValueOf(c.OriginalPublicInputs[i].Limb)
+		// U64 is [8]U8 little-endian internally; reverse for big-endian
+		for j := 7; j >= 0; j-- {
+			allBytes = append(allBytes, u64Val[j])
+		}
+	}
+
+	keccak.Write(allBytes)
+	hash := keccak.Sum() // 32 U8 bytes
+
+	// Accumulate hi (bytes 0..15) and lo (bytes 16..31) as BN254 field elements
+	hi := frontend.Variable(0)
+	for i := 0; i < 16; i++ {
+		hi = api.Mul(hi, 256)
+		hi = api.Add(hi, hash[i].Val)
+	}
+	lo := frontend.Variable(0)
+	for i := 16; i < 32; i++ {
+		lo = api.Mul(lo, 256)
+		lo = api.Add(lo, hash[i].Val)
+	}
+
+	api.AssertIsEqual(c.PublicInputs[0], hi)
+	api.AssertIsEqual(c.PublicInputs[1], lo)
 
 	verifierChip.Verify(c.Proof, c.OriginalPublicInputs, c.VerifierOnlyCircuitData)
 
@@ -128,22 +153,23 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	rawProofWithPis := types.ReadProofWithPublicInputsRaw(proof_with_public_inputs)
 	proofWithPis := variables.DeserializeProofWithPublicInputs(rawProofWithPis)
 
-	two := big.NewInt(2)
+	// Convert 52 u64 public inputs to 416 bytes (big-endian per u64)
+	buf := make([]byte, 416)
+	for i := 0; i < 52; i++ {
+		binary.BigEndian.PutUint64(buf[i*8:], rawProofWithPis.PublicInputs[i])
+	}
+	// Compute keccak256
+	h := gosha3.NewLegacyKeccak256()
+	h.Write(buf)
+	hashBytes := h.Sum(nil)
 
-	blockStateHashAcc := big.NewInt(0)
-	sighashAcc := big.NewInt(0)
-	for i := 255; i >= 0; i-- {
-		blockStateHashAcc = new(big.Int).Mul(blockStateHashAcc, two)
-		blockStateHashAcc = new(big.Int).Add(blockStateHashAcc, new(big.Int).SetUint64(rawProofWithPis.PublicInputs[i]))
-	}
-	for i := 511; i >= 256; i-- {
-		sighashAcc = new(big.Int).Mul(sighashAcc, two)
-		sighashAcc = new(big.Int).Add(sighashAcc, new(big.Int).SetUint64(rawProofWithPis.PublicInputs[i]))
-	}
-	blockStateHash := frontend.Variable(blockStateHashAcc)
-	fmt.Println("blockStateHash", blockStateHash)
-	sighash := frontend.Variable(sighashAcc)
-	fmt.Println("sighash", sighash)
+	// Split into hi (128 bits) and lo (128 bits)
+	hi := new(big.Int).SetBytes(hashBytes[:16])
+	lo := new(big.Int).SetBytes(hashBytes[16:])
+	hiVar := frontend.Variable(hi)
+	loVar := frontend.Variable(lo)
+	fmt.Println("keccak256 hi", hiVar)
+	fmt.Println("keccak256 lo", loVar)
 
 	circuit := CRVerifierCircuit{
 		PublicInputs:            make([]frontend.Variable, 2),
@@ -154,7 +180,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	}
 
 	assignment := CRVerifierCircuit{
-		PublicInputs:            []frontend.Variable{blockStateHash, sighash},
+		PublicInputs:            []frontend.Variable{hiVar, loVar},
 		Proof:                   circuit.Proof,
 		OriginalPublicInputs:    circuit.OriginalPublicInputs,
 		VerifierOnlyCircuitData: circuit.VerifierOnlyCircuitData,
