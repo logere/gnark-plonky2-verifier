@@ -40,6 +40,32 @@ pub fn generate_groth16_proof(
     }
 }
 
+/// JSON-aware version: accepts JSON strings directly without needing plonky2 Rust types.
+/// This avoids serde on plonky2 types and goes straight through the Go FFI.
+pub fn generate_groth16_proof_from_json(
+    common_circuit_data_json: &str,
+    proof_with_public_inputs_json: &str,
+    verifier_only_circuit_data_json: &str,
+    keystore_path: &str,
+) -> (String, String) {
+    let c_common = CString::new(common_circuit_data_json).unwrap();
+    let c_proof = CString::new(proof_with_public_inputs_json).unwrap();
+    let c_verifier = CString::new(verifier_only_circuit_data_json).unwrap();
+    let c_keystore = CString::new(keystore_path).unwrap();
+    unsafe {
+        let c_proof_with_vk = bindings::GenerateGroth16ProofFromJson(
+            c_common.into_raw(),
+            c_proof.into_raw(),
+            c_verifier.into_raw(),
+            c_keystore.into_raw(),
+        );
+        let proof = CStr::from_ptr((*c_proof_with_vk).proof).to_string_lossy().into_owned();
+        let vk = CStr::from_ptr((*c_proof_with_vk).vk).to_string_lossy().into_owned();
+        libc::free(c_proof_with_vk as *mut libc::c_void);
+        (proof, vk)
+    }
+}
+
 pub fn verify_groth16_proof(
     proof_string: &str,
     vk_string: &str,
@@ -60,6 +86,16 @@ pub fn initialize(key_path: &str) {
     let c_key_path_string = CString::new(key_path).unwrap();
     unsafe {
         bindings::Initialize(c_key_path_string.into_raw());
+    }
+}
+
+pub fn export_solidity_verifier(keystore_path: &str) -> String {
+    let c_keystore_path = CString::new(keystore_path).unwrap();
+    unsafe {
+        let c_result = bindings::ExportSolidityVerifier(c_keystore_path.into_raw());
+        let result = CStr::from_ptr(c_result).to_string_lossy().into_owned();
+        libc::free(c_result as *mut libc::c_void);
+        result
     }
 }
 

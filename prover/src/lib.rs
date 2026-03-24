@@ -62,6 +62,28 @@ pub fn initialize(key_path: &str) -> anyhow::Result<()>{
     Ok(())
 }
 
+pub fn export_solidity_verifier(keystore_path: &str) -> anyhow::Result<String> {
+    let sol = gnark_plonky2_verifier_ffi::export_solidity_verifier(keystore_path);
+    if sol.starts_with("error:") {
+        anyhow::bail!("export_solidity_verifier failed: {}", sol);
+    }
+    Ok(sol)
+}
+
+pub fn generate_groth16_proof_from_json(
+    common_circuit_data_json: &str,
+    proof_with_public_inputs_json: &str,
+    verifier_only_circuit_data_json: &str,
+    keystore_path: &str,
+) -> anyhow::Result<(String, String)> {
+    Ok(gnark_plonky2_verifier_ffi::generate_groth16_proof_from_json(
+        common_circuit_data_json,
+        proof_with_public_inputs_json,
+        verifier_only_circuit_data_json,
+        keystore_path,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use plonky2::field::types::Field;
