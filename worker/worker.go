@@ -212,11 +212,9 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	}
 	fmt.Printf("[prove] Setup took %s\n", time.Since(t))
 
-	t = time.Now()
-	if err := debugUnsatisfiedConstraint(*cs, wit); err != nil {
-		panic(err)
-	}
-	fmt.Printf("[prove] debugUnsatisfiedConstraint took %s\n", time.Since(t))
+	// NOTE: debugUnsatisfiedConstraint is skipped because the circuit uses
+	// commitments (via multicommit/logderivarg), whose placeholder hints
+	// are only replaced inside groth16.Prove.
 
 	var proof groth16.Proof
 	var publicWitness witness.Witness
