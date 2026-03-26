@@ -198,36 +198,46 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 
 	// NewWitness() must be called before Compile() to avoid gnark panicking.
 	// ref: https://github.com/Consensys/gnark/issues/1038
+	t := time.Now()
 	wit, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("[prove] NewWitness took %s\n", time.Since(t))
 
+	t = time.Now()
 	cs, pk, vk, err := Setup(&circuit, keystore_path)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("[prove] Setup took %s\n", time.Since(t))
 
+	t = time.Now()
 	if err := debugUnsatisfiedConstraint(*cs, wit); err != nil {
 		panic(err)
 	}
+	fmt.Printf("[prove] debugUnsatisfiedConstraint took %s\n", time.Since(t))
 
 	var proof groth16.Proof
 	var publicWitness witness.Witness
 	var retries = 0
 
 	for {
+		t = time.Now()
 		proof, err = groth16.Prove(*cs, pk, wit)
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf("[prove] groth16.Prove took %s\n", time.Since(t))
 
 		publicWitness, err = wit.Public()
 		if err != nil {
 			panic(err)
 		}
 
+		t = time.Now()
 		err = groth16.Verify(proof, vk, publicWitness)
+		fmt.Printf("[prove] groth16.Verify took %s\n", time.Since(t))
 		if err == nil {
 			break
 		}
@@ -351,43 +361,63 @@ func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.Constr
 	}
 	fmt.Println("you have to initialize all the keys first")
 	if CheckKeysExist(keystore_path) {
+		t := time.Now()
 		ccs, err := ReadCircuit(ecc.BN254, filepath.Join(keystore_path, CIRCUIT_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] ReadCircuit took %s\n", time.Since(t))
+
+		t = time.Now()
 		vk, err := ReadVerifyingKey(ecc.BN254, filepath.Join(keystore_path, VK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] ReadVerifyingKey took %s\n", time.Since(t))
+
+		t = time.Now()
 		pk, err := ReadProvingKey(ecc.BN254, filepath.Join(keystore_path, PK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] ReadProvingKey took %s\n", time.Since(t))
+
 		prepCircuit1.CCS = &ccs
 		prepCircuit1.PKey = pk.(*groth16_bn254.ProvingKey)
 		prepCircuit1.VKey = vk.(*groth16_bn254.VerifyingKey)
 	} else {
+		t := time.Now()
 		ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, circuit)
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] Compile took %s, constraints: %d\n", time.Since(t), ccs.GetNbConstraints())
 
+		t = time.Now()
 		pk, vk, err := groth16.Setup(ccs)
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] groth16.Setup took %s\n", time.Since(t))
 
+		t = time.Now()
 		if err := WriteCircuit(ccs, keystore_path+CIRCUIT_PATH); err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] WriteCircuit took %s\n", time.Since(t))
 
+		t = time.Now()
 		if err := WriteVerifyingKey(vk, keystore_path+VK_PATH); err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] WriteVerifyingKey took %s\n", time.Since(t))
 
+		t = time.Now()
 		if err := WriteProvingKey(pk, keystore_path+PK_PATH); err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] WriteProvingKey took %s\n", time.Since(t))
+
 		prepCircuit1.CCS = &ccs
 		prepCircuit1.PKey = pk.(*groth16_bn254.ProvingKey)
 		prepCircuit1.VKey = vk.(*groth16_bn254.VerifyingKey)
