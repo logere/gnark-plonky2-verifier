@@ -88,26 +88,29 @@ func (c *CRVerifierCircuit) Define(api frontend.API) error {
 	if len(c.PublicInputs) != 2 {
 		panic("invalid public inputs, should contain 2 BN254 elements")
 	}
-	if len(c.OriginalPublicInputs) != 52 {
-		panic("invalid original public inputs, should contain 52 goldilocks elements")
+	if len(c.OriginalPublicInputs) != 52*64 {
+		panic("invalid original public inputs, should contain 3328 goldilocks elements (52 * 64 LE bits)")
 	}
 
-	uapi, err := uints.New[uints.U64](api)
-	if err != nil {
-		return err
-	}
 	keccak, err := sha3.NewLegacyKeccak256(api)
 	if err != nil {
 		return err
 	}
 
-	// Convert 52 goldilocks u64 values to 416 bytes (big-endian per u64)
+	// Pack 3328 LE bits (52 field elements × 64 bits) into 416 bytes (big-endian per u64)
 	allBytes := make([]uints.U8, 0, 416)
 	for i := 0; i < 52; i++ {
-		u64Val := uapi.ValueOf(c.OriginalPublicInputs[i].Limb)
-		// U64 is [8]U8 little-endian internally; reverse for big-endian
-		for j := 7; j >= 0; j-- {
-			allBytes = append(allBytes, u64Val[j])
+		// 64 LE bits for field element i, pack into 8 big-endian bytes
+		for b := 0; b < 8; b++ {
+			// big-endian byte b corresponds to bits at offset (7-b)*8
+			bitBase := i*64 + (7-b)*8
+			byteVal := frontend.Variable(0)
+			for k := 7; k >= 0; k-- {
+				byteVal = api.Mul(byteVal, 2)
+				api.AssertIsBoolean(c.OriginalPublicInputs[bitBase+k].Limb)
+				byteVal = api.Add(byteVal, c.OriginalPublicInputs[bitBase+k].Limb)
+			}
+			allBytes = append(allBytes, uints.U8{Val: byteVal})
 		}
 	}
 
@@ -153,10 +156,16 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	rawProofWithPis := types.ReadProofWithPublicInputsRaw(proof_with_public_inputs)
 	proofWithPis := variables.DeserializeProofWithPublicInputs(rawProofWithPis)
 
-	// Convert 52 u64 public inputs to 416 bytes (big-endian per u64)
+	// Pack 3328 LE bits (52 field elements × 64 bits) back into 416 bytes (big-endian per u64)
 	buf := make([]byte, 416)
 	for i := 0; i < 52; i++ {
-		binary.BigEndian.PutUint64(buf[i*8:], rawProofWithPis.PublicInputs[i])
+		var val uint64
+		for j := 0; j < 64; j++ {
+			if rawProofWithPis.PublicInputs[i*64+j] == 1 {
+				val |= 1 << uint(j)
+			}
+		}
+		binary.BigEndian.PutUint64(buf[i*8:], val)
 	}
 	// Compute keccak256
 	h := gosha3.NewLegacyKeccak256()

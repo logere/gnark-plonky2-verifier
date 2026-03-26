@@ -1,6 +1,6 @@
 module github.com/cf/gnark-plonky2-verifier
 
-go 1.21.4
+go 1.22
 
 toolchain go1.22.3
 
@@ -9,7 +9,8 @@ require (
 	github.com/GopherJ/gnark-ignition-verifier v0.0.0-20240415111943-ecb54c32e4bb
 	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
 	github.com/rs/zerolog v1.34.0
-	github.com/zilong-dai/gnark v0.0.0-20240517091131-0ad4d7b387da
+	github.com/zilong-dai/gnark v0.0.0-20260326105934-fcaf83469292
+	golang.org/x/crypto v0.17.0
 )
 
 require (
@@ -27,7 +28,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
