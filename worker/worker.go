@@ -391,6 +391,7 @@ func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.Constr
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		fmt.Printf("[setup] constraints: %d, commitments: %d\n", ccs.GetNbConstraints(), len(ccs.GetCommitments().CommitmentIndexes()))
 		fmt.Printf("[setup] Compile took %s, constraints: %d\n", time.Since(t), ccs.GetNbConstraints())
 
 		t = time.Now()
