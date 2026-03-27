@@ -269,24 +269,28 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	fmt.Println("proofString", string(original_proof_bytes))
 	fmt.Println("vkString", string(original_vk_bytes))
 
-	proof_city, err := serialize.ToJsonCityProof(bnProof, bnWitness)
+	// Keep City serialization for debugging visibility only. Public API now
+	// returns gnark JSON so GenerateProof and VerifyProof use one format.
+	proofCityDebug, err := serialize.ToJsonCityProof(bnProof, bnWitness)
 	if err != nil {
 		panic(err)
 	}
-	proof_bytes, err := json.Marshal(&proof_city)
+	proofCityBytes, err := json.Marshal(&proofCityDebug)
 	if err != nil {
 		panic(err)
 	}
-	vk_city, err := serialize.ToJsonCityVK(bnVk)
+	vkCityDebug, err := serialize.ToJsonCityVK(bnVk)
 	if err != nil {
 		panic(err)
 	}
-	vk_bytes, err := json.Marshal(&vk_city)
+	vkCityBytes, err := json.Marshal(&vkCityDebug)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("proof_city_debug", string(proofCityBytes))
+	fmt.Println("vk_city_debug", string(vkCityBytes))
 
-	return string(proof_bytes), string(vk_bytes)
+	return string(original_proof_bytes), string(original_vk_bytes)
 
 }
 
@@ -323,36 +327,25 @@ func debugUnsatisfiedConstraint(ccs constraint.ConstraintSystem, wit witness.Wit
 	return nil
 }
 
-func VerifyProof(proofString string, vkString string) string {
-	var cityProof serialize.CityGroth16ProofData
-	var cityVk serialize.CityGroth16VerifierData
-
-	if err := json.Unmarshal([]byte(proofString), &cityProof); err != nil {
+func VerifyProof(proofString string, vkString string) bool {
+	g16ProofWithPublicInputs := NewG16ProofWithPublicInputs()
+	if err := json.Unmarshal([]byte(proofString), g16ProofWithPublicInputs); err != nil {
 		fmt.Println(err)
-		return "false"
+		return false
 	}
 
-	g16ProofWithPublicInputs, err := FromCityProof(cityProof)
+	g16VerifyingKey := NewG16VerifyingKey()
+	err := json.Unmarshal([]byte(vkString), g16VerifyingKey)
 	if err != nil {
 		fmt.Println(err)
-		return "false"
-	}
-
-	if err := json.Unmarshal([]byte(vkString), &cityVk); err != nil {
-		fmt.Println(err)
-		return "false"
-	}
-	g16VerifyingKey, err := FromCityVk(cityVk)
-	if err != nil {
-		fmt.Println(err)
-		return "false"
+		return false
 	}
 
 	if err := groth16.Verify(g16ProofWithPublicInputs.Proof, g16VerifyingKey.VK, g16ProofWithPublicInputs.PublicInputs); err != nil {
 		fmt.Println(err)
-		return "false"
+		return false
 	}
-	return "true"
+	return true
 }
 
 func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.ConstraintSystem, *groth16_bn254.ProvingKey, *groth16_bn254.VerifyingKey, error) {

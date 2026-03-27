@@ -46,8 +46,11 @@ func GenerateGroth16ProofFromJson(common_circuit_data_json *C.char, proof_with_p
 }
 
 //export VerifyGroth16Proof
-func VerifyGroth16Proof(proofString *C.char, vkString *C.char) *C.char {
-	return C.CString(worker.VerifyProof(C.GoString(proofString), C.GoString(vkString)))
+func VerifyGroth16Proof(proofString *C.char, vkString *C.char) C.int {
+	if worker.VerifyProof(C.GoString(proofString), C.GoString(vkString)) {
+		return 1
+	}
+	return 0
 }
 
 //export Initialize
@@ -75,7 +78,10 @@ func main() {
 	proof_with_public_inputs, _ := os.ReadFile(path + "/proof_with_public_inputs.json")
 	verifier_only_circuit_data, _ := os.ReadFile(path + "/verifier_only_circuit_data.json")
 
-	proof_city, vk_city := worker.GenerateProof(string(common_circuit_data), string(proof_with_public_inputs), string(verifier_only_circuit_data), "/tmp/groth16-keystore/0/")
-	fmt.Println("proof city", proof_city)
-	fmt.Println("vk city", vk_city)
+	proof, vk := worker.GenerateProof(string(common_circuit_data), string(proof_with_public_inputs), string(verifier_only_circuit_data), "/tmp/groth16-keystore/0/")
+	fmt.Println("proof", proof)
+	fmt.Println("vk", vk)
+
+	verifyResult := worker.VerifyProof(proof, vk)
+	fmt.Println("verify_result", verifyResult)
 }

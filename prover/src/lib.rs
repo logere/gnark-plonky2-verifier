@@ -54,7 +54,7 @@ pub fn verify_groth16_proof(
 ) -> anyhow::Result<bool>{
 
     let result = gnark_plonky2_verifier_ffi::verify_groth16_proof(&proof_with_public_inputs, &vk);
-    Ok(result == "true")
+    Ok(result)
 }
 
 pub fn initialize(key_path: &str) -> anyhow::Result<()>{
