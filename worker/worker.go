@@ -9,13 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/GopherJ/doge-covenant/serialize"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
 	"github.com/cf/gnark-plonky2-verifier/types"
 	"github.com/cf/gnark-plonky2-verifier/variables"
 	"github.com/cf/gnark-plonky2-verifier/verifier"
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/rs/zerolog"
 	"github.com/zilong-dai/gnark/backend/groth16"
 	groth16_bn254 "github.com/zilong-dai/gnark/backend/groth16/bn254"
@@ -249,8 +247,6 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	}
 
 	bnProof := proof.(*groth16_bn254.Proof)
-	bnVk := vk
-	bnWitness := publicWitness.Vector().(fr.Vector)
 
 	original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
 		Proof:        bnProof,
@@ -269,24 +265,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	fmt.Println("proofString", string(original_proof_bytes))
 	fmt.Println("vkString", string(original_vk_bytes))
 
-	proof_city, err := serialize.ToJsonCityProof(bnProof, bnWitness)
-	if err != nil {
-		panic(err)
-	}
-	proof_bytes, err := json.Marshal(&proof_city)
-	if err != nil {
-		panic(err)
-	}
-	vk_city, err := serialize.ToJsonCityVK(bnVk)
-	if err != nil {
-		panic(err)
-	}
-	vk_bytes, err := json.Marshal(&vk_city)
-	if err != nil {
-		panic(err)
-	}
-
-	return string(proof_bytes), string(vk_bytes)
+	return string(original_proof_bytes), string(original_vk_bytes)
 
 }
 
@@ -324,26 +303,15 @@ func debugUnsatisfiedConstraint(ccs constraint.ConstraintSystem, wit witness.Wit
 }
 
 func VerifyProof(proofString string, vkString string) string {
-	var cityProof serialize.CityGroth16ProofData
-	var cityVk serialize.CityGroth16VerifierData
+	var g16ProofWithPublicInputs G16ProofWithPublicInputs
+	var g16VerifyingKey G16VerifyingKey
 
-	if err := json.Unmarshal([]byte(proofString), &cityProof); err != nil {
+	if err := json.Unmarshal([]byte(proofString), &g16ProofWithPublicInputs); err != nil {
 		fmt.Println(err)
 		return "false"
 	}
 
-	g16ProofWithPublicInputs, err := FromCityProof(cityProof)
-	if err != nil {
-		fmt.Println(err)
-		return "false"
-	}
-
-	if err := json.Unmarshal([]byte(vkString), &cityVk); err != nil {
-		fmt.Println(err)
-		return "false"
-	}
-	g16VerifyingKey, err := FromCityVk(cityVk)
-	if err != nil {
+	if err := json.Unmarshal([]byte(vkString), &g16VerifyingKey); err != nil {
 		fmt.Println(err)
 		return "false"
 	}
