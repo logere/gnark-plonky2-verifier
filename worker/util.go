@@ -244,7 +244,7 @@ func DeSerializeG1MCL(g1s string) (*curve.G1Affine, error) {
 	}
 
 	oddFlag := false
-	if g1Bytes[0]&0xe0 == 0x80 {
+	if g1Bytes[0]&0x80 == 0x80 {
 		oddFlag = true
 	}
 
@@ -256,7 +256,8 @@ func DeSerializeG1MCL(g1s string) (*curve.G1Affine, error) {
 
 	X.SetBytes(g1Bytes[:])
 
-	bCurveCoeff.SetUint64(4)
+	// BN254 G1 curve equation: y^2 = x^3 + 3
+	bCurveCoeff.SetUint64(3)
 
 	YSquared.Square(&X).Mul(&YSquared, &X)
 	YSquared.Add(&YSquared, &bCurveCoeff)
@@ -285,7 +286,7 @@ func DeSerializeG2MCL(g2a0, g2a1 string) (*curve.G2Affine, error) {
 	}
 
 	oddFlag := false
-	if g2a1Bytes[0]&0xe0 == 0x80 {
+	if g2a1Bytes[0]&0x80 == 0x80 {
 		oddFlag = true
 	}
 
@@ -297,14 +298,17 @@ func DeSerializeG2MCL(g2a0, g2a1 string) (*curve.G2Affine, error) {
 	g2.X.A1.SetBytes(g2a1Bytes)
 
 	var YSquared, Y, bTwistCurveCoeff curve.E2
-	var bCurveCoeff fp.Element
-	var twist curve.E2
 
-	bCurveCoeff.SetUint64(4)
-	// M-twist
-	twist.A0.SetUint64(1)
-	twist.A1.SetUint64(1)
-	bTwistCurveCoeff.MulByElement(&twist, &bCurveCoeff)
+	// BN254 twist curve coefficient used by gnark:
+	// y^2 = x^3 + bTwist, where
+	// bTwist = (19485874751759354771024239261021720505790618469301721065564631296452457478373,
+	//           266929791119991161246907387137283842545076965332900288569378510910307636690)
+	if _, err := bTwistCurveCoeff.A0.SetString("19485874751759354771024239261021720505790618469301721065564631296452457478373"); err != nil {
+		return nil, fmt.Errorf("failed to parse bn254 twist coefficient A0: %w", err)
+	}
+	if _, err := bTwistCurveCoeff.A1.SetString("266929791119991161246907387137283842545076965332900288569378510910307636690"); err != nil {
+		return nil, fmt.Errorf("failed to parse bn254 twist coefficient A1: %w", err)
+	}
 
 	YSquared.Square(&g2.X).Mul(&YSquared, &g2.X)
 	YSquared.Add(&YSquared, &bTwistCurveCoeff)

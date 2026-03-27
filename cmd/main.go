@@ -47,10 +47,40 @@ func GenerateGroth16ProofFromJson(common_circuit_data_json *C.char, proof_with_p
 
 //export VerifyGroth16Proof
 func VerifyGroth16Proof(proofString *C.char, vkString *C.char) C.int {
-	if worker.VerifyProof(C.GoString(proofString), C.GoString(vkString)) {
+	if worker.VerifyProofUncompressed(C.GoString(proofString), C.GoString(vkString)) {
 		return 1
 	}
 	return 0
+}
+
+//export VerifyGroth16ProofUncompressed
+func VerifyGroth16ProofUncompressed(proofString *C.char, vkString *C.char) C.int {
+	if worker.VerifyProofUncompressed(C.GoString(proofString), C.GoString(vkString)) {
+		return 1
+	}
+	return 0
+}
+
+//export VerifyGroth16ProofCompressed
+func VerifyGroth16ProofCompressed(proofString *C.char, vkString *C.char) C.int {
+	if worker.VerifyProofCompressed(C.GoString(proofString), C.GoString(vkString)) {
+		return 1
+	}
+	return 0
+}
+
+//export ConvertGroth16ToCompressed
+func ConvertGroth16ToCompressed(proofString *C.char, vkString *C.char) *C.Groth16ProofWithVK {
+	proofStr, vkStr, err := worker.ConvertProofAndVkToCompressed(C.GoString(proofString), C.GoString(vkString))
+	if err != nil {
+		proofStr = "error: " + err.Error()
+		vkStr = "error: " + err.Error()
+	}
+
+	cProofWithVk := (*C.Groth16ProofWithVK)(C.malloc(C.sizeof_Groth16ProofWithVK))
+	cProofWithVk.proof = C.CString(proofStr)
+	cProofWithVk.vk = C.CString(vkStr)
+	return cProofWithVk
 }
 
 //export Initialize

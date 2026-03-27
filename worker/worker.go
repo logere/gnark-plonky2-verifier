@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -328,6 +329,10 @@ func debugUnsatisfiedConstraint(ccs constraint.ConstraintSystem, wit witness.Wit
 }
 
 func VerifyProof(proofString string, vkString string) bool {
+	return VerifyProofUncompressed(proofString, vkString)
+}
+
+func VerifyProofUncompressed(proofString string, vkString string) bool {
 	g16ProofWithPublicInputs := NewG16ProofWithPublicInputs()
 	if err := json.Unmarshal([]byte(proofString), g16ProofWithPublicInputs); err != nil {
 		fmt.Println(err)
@@ -346,6 +351,98 @@ func VerifyProof(proofString string, vkString string) bool {
 		return false
 	}
 	return true
+}
+
+func VerifyProofCompressed(proofString string, vkString string) bool {
+	var cityProof serialize.CityGroth16ProofData
+	if err := json.Unmarshal([]byte(proofString), &cityProof); err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	var cityVk struct {
+		serialize.CityGroth16VerifierData
+		CommitmentKey                string  `json:"CommitmentKey"`
+		PublicAndCommitmentCommitted [][]int `json:"PublicAndCommitmentCommitted"`
+	}
+	if err := json.Unmarshal([]byte(vkString), &cityVk); err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	g16ProofWithPublicInputs, err := FromCityProof(cityProof)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	g16VerifyingKey, err := FromCityVk(
+		cityVk.CityGroth16VerifierData,
+		cityVk.CommitmentKey,
+		cityVk.PublicAndCommitmentCommitted,
+	)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	if err := groth16.Verify(g16ProofWithPublicInputs.Proof, g16VerifyingKey.VK, g16ProofWithPublicInputs.PublicInputs); err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return true
+}
+
+func ConvertProofAndVkToCompressed(proofString string, vkString string) (string, string, error) {
+	g16ProofWithPublicInputs := NewG16ProofWithPublicInputs()
+	if err := json.Unmarshal([]byte(proofString), g16ProofWithPublicInputs); err != nil {
+		return "", "", fmt.Errorf("failed to parse uncompressed proof json: %w", err)
+	}
+
+	g16VerifyingKey := NewG16VerifyingKey()
+	if err := json.Unmarshal([]byte(vkString), g16VerifyingKey); err != nil {
+		return "", "", fmt.Errorf("failed to parse uncompressed vk json: %w", err)
+	}
+
+	bnProof := g16ProofWithPublicInputs.Proof.(*groth16_bn254.Proof)
+	bnVk := g16VerifyingKey.VK.(*groth16_bn254.VerifyingKey)
+	bnWitness := g16ProofWithPublicInputs.PublicInputs.Vector().(fr.Vector)
+
+	proofCity, err := serialize.ToJsonCityProof(bnProof, bnWitness)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to convert proof to compressed city format: %w", err)
+	}
+	vkCity, err := serialize.ToJsonCityVK(bnVk)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to convert vk to compressed city format: %w", err)
+	}
+
+	proofCityBytes, err := json.Marshal(proofCity)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to marshal compressed proof json: %w", err)
+	}
+	vkCityWithCommitment := map[string]interface{}{
+		"alpha_g1":                      vkCity.AlphaG1,
+		"beta_g2":                       vkCity.BetaG2,
+		"gamma_g2":                      vkCity.GammaG2,
+		"delta_g2":                      vkCity.DeltaG2,
+		"k":                             vkCity.G1K,
+		"CommitmentKey":                 bytesToHexCommitmentKey(bnVk),
+		"PublicAndCommitmentCommitted":  bnVk.PublicAndCommitmentCommitted,
+	}
+
+	vkCityBytes, err := json.Marshal(vkCityWithCommitment)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to marshal compressed vk json: %w", err)
+	}
+
+	return string(proofCityBytes), string(vkCityBytes), nil
+}
+
+func bytesToHexCommitmentKey(vk *groth16_bn254.VerifyingKey) string {
+	var comkeyWriter bytes.Buffer
+	vk.CommitmentKey.WriteRawTo(&comkeyWriter)
+	return fmt.Sprintf("%x", comkeyWriter.Bytes())
 }
 
 func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.ConstraintSystem, *groth16_bn254.ProvingKey, *groth16_bn254.VerifyingKey, error) {

@@ -10,3 +10,6 @@ libc = "*"
 gobuild = "0.1.0-alpha.1"
 bindgen = "0.69.4"
 anyhow = "*"
+
+[dev-dependencies]
+serde_json = "1"
