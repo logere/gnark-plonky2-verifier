@@ -10,11 +10,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/GopherJ/doge-covenant/serialize"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
 	"github.com/cf/gnark-plonky2-verifier/types"
 	"github.com/cf/gnark-plonky2-verifier/variables"
 	"github.com/cf/gnark-plonky2-verifier/verifier"
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/rs/zerolog"
 	"github.com/zilong-dai/gnark/backend/groth16"
 	groth16_bn254 "github.com/zilong-dai/gnark/backend/groth16/bn254"
@@ -248,6 +250,8 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	}
 
 	bnProof := proof.(*groth16_bn254.Proof)
+	bnVk := vk
+	bnWitness := publicWitness.Vector().(fr.Vector)
 
 	original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
 		Proof:        bnProof,
