@@ -144,7 +144,7 @@ func initKeyStorePath(keystore_path string) {
 	}
 }
 
-func GenerateProof(common_circuit_data string, proof_with_public_inputs string, verifier_only_circuit_data string, keystore_path string) (string, string) {
+func PrepareCircuit(common_circuit_data string, proof_with_public_inputs string, verifier_only_circuit_data string, keystore_path string) (*constraint.ConstraintSystem, *groth16_bn254.ProvingKey, *groth16_bn254.VerifyingKey, witness.Witness) {
 	initKeyStorePath(keystore_path)
 
 	commonCircuitData := types.ReadCommonCircuitDataRaw(common_circuit_data)
@@ -216,9 +216,17 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	}
 	fmt.Printf("[prove] debugUnsatisfiedConstraint took %s\n", time.Since(t))
 
+	return cs, pk, vk, wit
+}
+
+func GenerateProof(common_circuit_data string, proof_with_public_inputs string, verifier_only_circuit_data string, keystore_path string) (string, string) {
+	cs, pk, vk, wit := PrepareCircuit(common_circuit_data, proof_with_public_inputs, verifier_only_circuit_data, keystore_path)
+
 	var proof groth16.Proof
 	var publicWitness witness.Witness
 	var retries = 0
+	var t time.Time
+	var err error
 
 	for {
 		t = time.Now()
