@@ -86,8 +86,8 @@ func (c *CRVerifierCircuit) Define(api frontend.API) error {
 	if len(c.PublicInputs) != 2 {
 		panic("invalid public inputs, should contain 2 BN254 elements")
 	}
-	if len(c.OriginalPublicInputs) != 52*64 {
-		panic("invalid original public inputs, should contain 3328 goldilocks elements (52 * 64 LE bits)")
+	if len(c.OriginalPublicInputs) != 17*64 {
+		panic("invalid original public inputs, should contain 1088 goldilocks elements (17 * 64 LE bits)")
 	}
 
 	keccak, err := sha3.NewLegacyKeccak256(api)
@@ -95,9 +95,9 @@ func (c *CRVerifierCircuit) Define(api frontend.API) error {
 		return err
 	}
 
-	// Pack 3328 LE bits (52 field elements × 64 bits) into 416 bytes (big-endian per u64)
-	allBytes := make([]uints.U8, 0, 416)
-	for i := 0; i < 52; i++ {
+	// Pack 1088 LE bits (17 field elements × 64 bits) into 136 bytes (big-endian per u64)
+	allBytes := make([]uints.U8, 0, 136)
+	for i := 0; i < 17; i++ {
 		// 64 LE bits for field element i, pack into 8 big-endian bytes
 		for b := 0; b < 8; b++ {
 			// big-endian byte b corresponds to bits at offset (7-b)*8
@@ -154,9 +154,9 @@ func PrepareCircuit(common_circuit_data string, proof_with_public_inputs string,
 	rawProofWithPis := types.ReadProofWithPublicInputsRaw(proof_with_public_inputs)
 	proofWithPis := variables.DeserializeProofWithPublicInputs(rawProofWithPis)
 
-	// Pack 3328 LE bits (52 field elements × 64 bits) back into 416 bytes (big-endian per u64)
-	buf := make([]byte, 416)
-	for i := 0; i < 52; i++ {
+	// Pack 1088 LE bits (17 field elements × 64 bits) back into 136 bytes (big-endian per u64)
+	buf := make([]byte, 136)
+	for i := 0; i < 17; i++ {
 		var val uint64
 		for j := 0; j < 64; j++ {
 			if rawProofWithPis.PublicInputs[i*64+j] == 1 {
