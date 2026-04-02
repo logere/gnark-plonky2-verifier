@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/GopherJ/doge-covenant/serialize"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
 	"github.com/cf/gnark-plonky2-verifier/types"
 	"github.com/cf/gnark-plonky2-verifier/variables"
+	fr_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/cf/gnark-plonky2-verifier/verifier"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/rs/zerolog"
@@ -81,13 +83,47 @@ type CRVerifierCircuit struct {
 	CommonCircuitData types.CommonCircuitData `gnark:",secret"`
 }
 
+func packPublicInputsToBigEndianBytes(rawPublicInputs []uint64, expectedLen int) []byte {
+	if len(rawPublicInputs) != expectedLen {
+		panic(fmt.Sprintf("invalid original public inputs len, expected %d got %d", expectedLen, len(rawPublicInputs)))
+	}
+	if expectedLen%64 != 0 {
+		panic(fmt.Sprintf("invalid original public inputs len %d, expected multiple of 64", expectedLen))
+	}
+
+	numLimbs := expectedLen / 64
+	buf := make([]byte, numLimbs*8)
+	for i := 0; i < numLimbs; i++ {
+		var val uint64
+		for j := 0; j < 64; j++ {
+			if rawPublicInputs[i*64+j] == 1 {
+				val |= 1 << uint(j)
+			}
+		}
+		binary.BigEndian.PutUint64(buf[i*8:], val)
+	}
+
+	return buf
+}
+
 func (c *CRVerifierCircuit) Define(api frontend.API) error {
 	verifierChip := verifier.NewVerifierChip(api, c.CommonCircuitData)
 	if len(c.PublicInputs) != 2 {
 		panic("invalid public inputs, should contain 2 BN254 elements")
 	}
-	if len(c.OriginalPublicInputs) != 17*64 {
-		panic("invalid original public inputs, should contain 1088 goldilocks elements (17 * 64 LE bits)")
+	expectedOriginalPublicInputs := int(c.CommonCircuitData.NumPublicInputs)
+	if len(c.OriginalPublicInputs) != expectedOriginalPublicInputs {
+		panic(fmt.Sprintf(
+			"invalid original public inputs, expected %d goldilocks elements, got %d",
+			expectedOriginalPublicInputs,
+			len(c.OriginalPublicInputs),
+		))
+	}
+	if expectedOriginalPublicInputs%64 != 0 {
+		panic(fmt.Sprintf(
+			"invalid original public inputs len %d, expected multiple of 64",
+			expectedOriginalPublicInputs,
+		))
 	}
 
 	keccak, err := sha3.NewLegacyKeccak256(api)
@@ -95,9 +131,10 @@ func (c *CRVerifierCircuit) Define(api frontend.API) error {
 		return err
 	}
 
-	// Pack 1088 LE bits (17 field elements × 64 bits) into 136 bytes (big-endian per u64)
-	allBytes := make([]uints.U8, 0, 136)
-	for i := 0; i < 17; i++ {
+	numLimbs := expectedOriginalPublicInputs / 64
+	// Pack N LE bits (N/64 field elements × 64 bits) into N/8 bytes (big-endian per u64)
+	allBytes := make([]uints.U8, 0, numLimbs*8)
+	for i := 0; i < numLimbs; i++ {
 		// 64 LE bits for field element i, pack into 8 big-endian bytes
 		for b := 0; b < 8; b++ {
 			// big-endian byte b corresponds to bits at offset (7-b)*8
@@ -154,17 +191,14 @@ func PrepareCircuit(common_circuit_data string, proof_with_public_inputs string,
 	rawProofWithPis := types.ReadProofWithPublicInputsRaw(proof_with_public_inputs)
 	proofWithPis := variables.DeserializeProofWithPublicInputs(rawProofWithPis)
 
-	// Pack 1088 LE bits (17 field elements × 64 bits) back into 136 bytes (big-endian per u64)
-	buf := make([]byte, 136)
-	for i := 0; i < 17; i++ {
-		var val uint64
-		for j := 0; j < 64; j++ {
-			if rawProofWithPis.PublicInputs[i*64+j] == 1 {
-				val |= 1 << uint(j)
-			}
-		}
-		binary.BigEndian.PutUint64(buf[i*8:], val)
-	}
+	expectedOriginalPublicInputs := int(commonCircuitData.NumPublicInputs)
+	buf := packPublicInputsToBigEndianBytes(rawProofWithPis.PublicInputs, expectedOriginalPublicInputs)
+	fmt.Printf(
+		"bridge wrap public inputs: %d bits (%d limbs / %d bytes)\n",
+		expectedOriginalPublicInputs,
+		expectedOriginalPublicInputs/64,
+		len(buf),
+	)
 	// Compute keccak256
 	h := gosha3.NewLegacyKeccak256()
 	h.Write(buf)
@@ -255,11 +289,14 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	}
 
 	bnProof := proof.(*groth16_bn254.Proof)
+	bnWitness := publicWitness.Vector().(fr_bn254.Vector)
 
-	original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
-		Proof:        bnProof,
-		PublicInputs: publicWitness,
-	})
+	cityProof, err := serialize.ToJsonCityProof(bnProof, bnWitness)
+	if err != nil {
+		panic(err)
+	}
+
+	original_proof_bytes, err := json.Marshal(cityProof)
 	if err != nil {
 		panic(err)
 	}
